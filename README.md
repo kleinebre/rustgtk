@@ -29,3 +29,6 @@ Demonstrates how to trigger periodic events tied into the GUI
 
 Shows how to share data between callbacks, e.g. a button and a timer
 
+* src/examples/shared_callback_code.rs
+
+Defines a single closure, used as callback in several widgets
