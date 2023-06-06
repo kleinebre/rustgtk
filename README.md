@@ -20,3 +20,7 @@ Puts that image on a clickable button
 * src/examples/css_styling.css
 
 Shows how to use CSS to style buttons.
+
+* src/examples/local_timeout.rs
+
+Demonstrates how to trigger periodic events tied into the GUI
