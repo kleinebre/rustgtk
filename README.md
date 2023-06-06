@@ -24,3 +24,8 @@ Shows how to use CSS to style buttons.
 * src/examples/local_timeout.rs
 
 Demonstrates how to trigger periodic events tied into the GUI
+
+* src/examples/shared_data.rs
+
+Shows how to share data between callbacks, e.g. a button and a timer
+
