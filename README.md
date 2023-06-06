@@ -6,6 +6,9 @@ together user interfaces with Rust and GTK.
 
 There are examples in src/examples/ and I have gradually
 expanded these.
+Note that the examples in src/examples/ are snapshots
+of `src/main.rs` so you'll need to copy them to src/main.rs
+to make them work with `cargo run`.
 
 * src/examples/load_and_draw_on_pixbuf.rs
 
@@ -14,3 +17,6 @@ Draws pixels to the pixbuf.
 Creates an image widget from the pixbuf
 Puts that image on a clickable button
 
+* src/examples/css_styling.css
+
+Shows how to use CSS to style buttons.
