@@ -32,3 +32,20 @@ Shows how to share data between callbacks, e.g. a button and a timer
 * src/examples/shared_callback_code.rs
 
 Defines a single closure, used as callback in several widgets
+
+* src/examples/initial_dialog.rs
+
+Opens a custom dialog window from another window.
+This is a bit rough around the edges, but some points are
+- Only the active window is visible. This is fine taking account
+  we're targeting an app where every window is fullscreen on a
+  single touch screen. With both windows running but only one
+  visible, we can act modal while the rest of the application is
+  still active. A future version will have just 1 window and each
+  dialog will be a box inside that window (with only 1 box visible).
+- The "x" close button works correctly for the dialog to close itself.
+  In this case the behaviour is the same as button "A" which is deemed
+  the close/cancel button for now.
+
+Next version is expected to be tidier.
+
