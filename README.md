@@ -1,51 +1,36 @@
-Welcome to the RustGTK repo
----------------------------
+# Welcome to the RustGTK repo
 
-This is mostly boilerplate code testing out how to put
-together user interfaces with Rust and GTK.
+This is mostly boilerplate code testing out how to put together user interfaces with Rust and GTK.
 
-There are examples in src/examples/ and I have gradually
-expanded these.
-Note that the examples in src/examples/ are snapshots
-of `src/main.rs` so you'll need to copy them to src/main.rs
-to make them work with `cargo run`.
+There are examples in src/examples/ and I have gradually expanded these. Note that the examples in src/examples/ are snapshots of `src/main.rs` so you'll need to copy them to src/main.rs to make them work with `cargo run`.
 
-* src/examples/load_and_draw_on_pixbuf.rs
+- src/examples/load_and_draw_on_pixbuf.rs
 
-Loads an image from file into a pixbuf.
-Draws pixels to the pixbuf. 
-Creates an image widget from the pixbuf
-Puts that image on a clickable button
+Loads an image from file into a pixbuf. Draws pixels to the pixbuf. Creates an image widget from the pixbuf Puts that image on a clickable button
 
-* src/examples/css_styling.css
+- src/examples/css_styling.css
 
 Shows how to use CSS to style buttons.
 
-* src/examples/local_timeout.rs
+- src/examples/local_timeout.rs
 
 Demonstrates how to trigger periodic events tied into the GUI
 
-* src/examples/shared_data.rs
+- src/examples/shared_data.rs
 
 Shows how to share data between callbacks, e.g. a button and a timer
 
-* src/examples/shared_callback_code.rs
+- src/examples/shared_callback_code.rs
 
 Defines a single closure, used as callback in several widgets
 
-* src/examples/initial_dialog.rs
+- src/examples/initial_dialog.rs
 
-Opens a custom dialog window from another window.
-This is a bit rough around the edges, but some points are
-- Only the active window is visible. This is fine taking account
-  we're targeting an app where every window is fullscreen on a
-  single touch screen. With both windows running but only one
-  visible, we can act modal while the rest of the application is
-  still active. A future version will have just 1 window and each
-  dialog will be a box inside that window (with only 1 box visible).
-- The "x" close button works correctly for the dialog to close itself.
-  In this case the behaviour is the same as button "A" which is deemed
-  the close/cancel button for now.
+Opens a custom dialog window from another window. This is a bit rough around the edges, but some points are
 
-Next version is expected to be tidier.
+- Only the active window is visible. This is fine taking account we're targeting an app where every window is fullscreen on a single touch screen. With both windows running but only one visible, we can act modal while the rest of the application is still active. A future version will have just 1 window and each dialog will be a box inside that window (with only 1 box visible).
+- The "x" close button works correctly for the dialog to close itself. In this case the behaviour is the same as button "A" which is deemed the close/cancel button for now.
 
+- src/examples/single_window_multi_dialog_interface.rs
+
+As the previous one, but has a single-window UI and keeps the dialogs all in the same window; a better match for a full-screen touchscreen app.
