@@ -16,7 +16,6 @@ enum DialogResult {
 struct SharedData {
     home_screen: Option<gtk::Box>,
     virtual_keyboard: Option<VirtualKeyboard>,
-    virtual_keyboard_input: String,
     virtual_keyboard_accept: String,
     virtual_keyboard_close_action: fn(&Arc<Mutex<SharedData>>, DialogResult),
 }
@@ -25,7 +24,6 @@ impl SharedData {
         SharedData {
             home_screen: None,
             virtual_keyboard: None,
-            virtual_keyboard_input: "".to_string(),
             virtual_keyboard_accept: "".to_string(), // empty = accept all
             virtual_keyboard_close_action: |_, _| {},
         }
@@ -60,18 +58,25 @@ impl HomeScreen {
                 shared_data
                     .lock()
                     .expect("mutex poisoned")
-                    .virtual_keyboard_input = "".to_string();
+                    .virtual_keyboard
+                    .as_mut()
+                    .unwrap()
+                    .input = "".to_string();
                 HomeScreen::hide(&shared_data);
                 VirtualKeyboard::show(
                     &shared_data,
                     move |shared_data, returnbutton: DialogResult| {
                         match returnbutton {
                             DialogResult::Ok => {
-                                let input = &shared_data
+                                println!("Keyboard click OK, val = {:?}",
+                                    &shared_data
                                     .lock()
                                     .expect("mutex poisoned")
-                                    .virtual_keyboard_input;
-                                println!("Keyboard click OK, val = {:?}", input);
+                                    .virtual_keyboard
+                                    .as_ref()
+                                    .unwrap()
+                                    .input
+                                );
                             }
                             _ => {
                                 println!("Dialog cancelled.");
@@ -81,7 +86,10 @@ impl HomeScreen {
                         shared_data
                             .lock()
                             .expect("mutex poisoned")
-                            .virtual_keyboard_input = "".to_string();
+                            .virtual_keyboard
+                            .as_mut()
+                            .unwrap()
+                            .input = "".to_string();
                     },
                 );
             }
@@ -103,7 +111,9 @@ impl HomeScreen {
 
 struct VirtualKeyboard {
     widget: gtk::Box,
+    input: String,
 }
+
 impl VirtualKeyboard {
     fn append_input(shared_data: &Arc<Mutex<SharedData>>, label: &str) {
         let x: String = {
@@ -113,7 +123,10 @@ impl VirtualKeyboard {
                 shared_data
                     .lock()
                     .expect("mutex poisoned")
-                    .virtual_keyboard_input,
+                    .virtual_keyboard
+                    .as_ref()
+                    .unwrap()
+                    .input,
                 label
             )
         };
@@ -121,7 +134,10 @@ impl VirtualKeyboard {
         shared_data
             .lock()
             .expect("mutex poisoned")
-            .virtual_keyboard_input = x;
+            .virtual_keyboard
+            .as_mut()
+            .unwrap()
+            .input = x;
     }
     fn show(
         shared_data: &Arc<Mutex<SharedData>>,
@@ -204,7 +220,10 @@ impl VirtualKeyboard {
     }
     fn new(shared_data: Arc<Mutex<SharedData>>) -> VirtualKeyboard {
         let widget = VirtualKeyboard::_create_widget(Arc::clone(&shared_data));
-        let instance = VirtualKeyboard { widget };
+        let instance = VirtualKeyboard {
+            widget,
+            input: "".to_string(),
+        };
         instance
     }
 }
@@ -219,13 +238,17 @@ fn main() {
 
     // timer thread
     let _source_id = glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
-        println!(
-            "shared={}",
-            shareddata_for_timer
+
+        let sd = shareddata_for_timer
                 .lock()
-                .expect("mutex poisoned")
-                .virtual_keyboard_input
-        );
+                .expect("mutex poisoned");
+        let vk = sd.virtual_keyboard.as_ref();
+        if vk.is_some() {
+            println!(
+                "shared={}",
+                vk.unwrap().input
+            );
+        }
         Continue(true)
     });
 
