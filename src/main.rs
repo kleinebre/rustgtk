@@ -15,7 +15,7 @@ enum DialogResult {
 }
 struct SharedData {
     home_screen: Option<gtk::Box>,
-    virtual_keyboard: Option<gtk::Box>,
+    virtual_keyboard: Option<VirtualKeyboard>,
     virtual_keyboard_input: String,
     virtual_keyboard_accept: String,
     virtual_keyboard_close_action: fn(&Arc<Mutex<SharedData>>, DialogResult),
@@ -101,7 +101,9 @@ impl HomeScreen {
     }
 }
 
-struct VirtualKeyboard {}
+struct VirtualKeyboard {
+    widget: gtk::Box,
+}
 impl VirtualKeyboard {
     fn append_input(shared_data: &Arc<Mutex<SharedData>>, label: &str) {
         let x: String = {
@@ -138,6 +140,7 @@ impl VirtualKeyboard {
                 .virtual_keyboard
                 .as_ref()
                 .unwrap()
+                .widget
                 .show_all();
         }
     }
@@ -164,10 +167,11 @@ impl VirtualKeyboard {
                 .virtual_keyboard
                 .as_ref()
                 .unwrap()
+                .widget
                 .hide();
         }
     }
-    fn create_widget(shared_data: Arc<Mutex<SharedData>>) -> gtk::Box {
+    fn _create_widget(shared_data: Arc<Mutex<SharedData>>) -> gtk::Box {
         let shared_callback = move |button: &gtk::Button| {
             let button_label = button.label().unwrap();
 
@@ -198,6 +202,11 @@ impl VirtualKeyboard {
         virtual_keyboard.pack_start(&button_c, true, true, 0);
         virtual_keyboard
     }
+    fn new(shared_data: Arc<Mutex<SharedData>>) -> VirtualKeyboard {
+        let widget = VirtualKeyboard::_create_widget(Arc::clone(&shared_data));
+        let instance = VirtualKeyboard { widget };
+        instance
+    }
 }
 
 fn main() {
@@ -220,12 +229,24 @@ fn main() {
         Continue(true)
     });
 
+    let virtual_keyboard = VirtualKeyboard::new(Arc::clone(&shared_data));
+    shared_data.lock().unwrap().virtual_keyboard = Some(virtual_keyboard);
     let home_screen = HomeScreen::create_widget(Arc::clone(&shared_data));
-    let virtual_keyboard = VirtualKeyboard::create_widget(Arc::clone(&shared_data));
 
     let vbox_main = gtk::Box::new(gtk::Orientation::Vertical, 5);
     vbox_main.pack_start(&home_screen, true, true, 0);
-    vbox_main.pack_start(&virtual_keyboard, true, true, 0);
+    vbox_main.pack_start(
+        &shared_data
+            .lock()
+            .unwrap()
+            .virtual_keyboard
+            .as_ref()
+            .unwrap()
+            .widget,
+        true,
+        true,
+        0,
+    );
 
     // This allows showing/hiding the gui bits
     let shareddata_for_main = Arc::clone(&shared_data);
@@ -234,10 +255,6 @@ fn main() {
             .lock()
             .expect("mutex poisoned")
             .home_screen = Some(home_screen);
-        shareddata_for_main
-            .lock()
-            .expect("mutex poisoned")
-            .virtual_keyboard = Some(virtual_keyboard);
     }
 
     // Create a CSS provider
