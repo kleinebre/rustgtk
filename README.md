@@ -33,5 +33,8 @@ Opens a custom dialog window from another window. This is a bit rough around the
 
 - src/examples/single_window_multi_dialog_interface.rs
 
-As the previous one, but has a single-window UI and keeps the dialogs all in the same window;
-a better match for a full-screen touchscreen app. This also makes the dialog code more modular.
+As the previous one, but has a single-window UI and keeps the dialogs all in the same window; a better match for a full-screen touchscreen app. This also makes the dialog code more modular.
+
+- src/examples/one_button_keyboard.rs
+
+This shows how one might implement the most basic on-screen keyboard dialog. There's no display, no backspace, just one button and OK/Cancel. The result is handled with a callback.
