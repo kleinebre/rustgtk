@@ -26,68 +26,15 @@ impl SharedData {
             home_screen: None,
             virtual_keyboard: None,
             virtual_keyboard_input: "".to_string(),
-            virtual_keyboard_accept: "".to_string(),  // empty = accept all
-            virtual_keyboard_close_action: |_,_| {},
+            virtual_keyboard_accept: "".to_string(), // empty = accept all
+            virtual_keyboard_close_action: |_, _| {},
         }
     }
 }
 
-fn append_input(shared_data: &Arc<Mutex<SharedData>>, label: &str) {
-    let x: String = {
-        // read the shared data, add a dot.
-        format!(
-            "{}{}",
-            shared_data.lock().expect("mutex poisoned").virtual_keyboard_input,
-            label
-        )
-    };
-    // write the dot back to shared data
-    shared_data.lock().expect("mutex poisoned").virtual_keyboard_input = x;
-}
-
-fn virtual_keyboard_show(shared_data: &Arc<Mutex<SharedData>>, close_action: fn(shared_data: &Arc<Mutex<SharedData>>, button: DialogResult), ) {
-    {
-        shared_data
-            .lock()
-            .expect("mutex poisoned")
-            .virtual_keyboard_close_action = close_action;
-    }
-    {
-        shared_data
-            .lock()
-            .expect("mutex poisoned")
-            .home_screen
-            .as_ref()
-            .unwrap()
-            .hide();
-    }
-    {
-        shared_data
-            .lock()
-            .expect("mutex poisoned")
-            .virtual_keyboard
-            .as_ref()
-            .unwrap()
-            .show_all();
-    }
-
-}
-
-fn virtual_keyboard_hide(shared_data: &Arc<Mutex<SharedData>>, close_button: DialogResult) {
-    let action = {
-        shared_data
-            .lock()
-            .expect("mutex poisoned")
-            .virtual_keyboard_close_action
-    };
-    action(shared_data, close_button);
-    {
-        shared_data
-            .lock()
-            .expect("mutex poisoned")
-            .virtual_keyboard_close_action = |_,_| {}
-    };
-    {
+struct HomeScreen {}
+impl HomeScreen {
+    fn show(shared_data: &Arc<Mutex<SharedData>>) {
         shared_data
             .lock()
             .expect("mutex poisoned")
@@ -96,85 +43,161 @@ fn virtual_keyboard_hide(shared_data: &Arc<Mutex<SharedData>>, close_button: Dia
             .unwrap()
             .show_all();
     }
-    {
+    fn hide(shared_data: &Arc<Mutex<SharedData>>) {
         shared_data
             .lock()
             .expect("mutex poisoned")
-            .virtual_keyboard
+            .home_screen
             .as_ref()
             .unwrap()
             .hide();
     }
+    fn create_widget(shared_data: Arc<Mutex<SharedData>>) -> gtk::Box {
+        let shared_callback = move |button: &gtk::Button| {
+            let button_label = button.label().unwrap();
+
+            if button_label == "Keyboard" {
+                shared_data
+                    .lock()
+                    .expect("mutex poisoned")
+                    .virtual_keyboard_input = "".to_string();
+                HomeScreen::hide(&shared_data);
+                VirtualKeyboard::show(
+                    &shared_data,
+                    move |shared_data, returnbutton: DialogResult| {
+                        match returnbutton {
+                            DialogResult::Ok => {
+                                let input = &shared_data
+                                    .lock()
+                                    .expect("mutex poisoned")
+                                    .virtual_keyboard_input;
+                                println!("Keyboard click OK, val = {:?}", input);
+                            }
+                            _ => {
+                                println!("Dialog cancelled.");
+                            }
+                        }
+                        HomeScreen::show(&shared_data);
+                        shared_data
+                            .lock()
+                            .expect("mutex poisoned")
+                            .virtual_keyboard_input = "".to_string();
+                    },
+                );
+            }
+        };
+
+        let home_screen = gtk::Box::new(gtk::Orientation::Vertical, 5);
+
+        let label = Label::new(Some("Hello, World!"));
+        home_screen.pack_start(&label, true, true, 0);
+
+        let button_opendia = Button::with_label("Keyboard");
+        button_opendia.connect_clicked(shared_callback.clone());
+        home_screen.pack_start(&button_opendia, true, true, 0);
+
+        home_screen.show_all();
+        home_screen
+    }
 }
 
-fn virtual_keyboard_create(shared_data: Arc<Mutex<SharedData>>) -> gtk::Box {
-    let shared_callback = move |button: &gtk::Button| {
-        let button_label = button.label().unwrap();
-
-        if button_label == "OK" {
-            virtual_keyboard_hide(&shared_data, DialogResult::Ok);
-            return;
+struct VirtualKeyboard {}
+impl VirtualKeyboard {
+    fn append_input(shared_data: &Arc<Mutex<SharedData>>, label: &str) {
+        let x: String = {
+            // read the shared data, add a dot.
+            format!(
+                "{}{}",
+                shared_data
+                    .lock()
+                    .expect("mutex poisoned")
+                    .virtual_keyboard_input,
+                label
+            )
+        };
+        // write the dot back to shared data
+        shared_data
+            .lock()
+            .expect("mutex poisoned")
+            .virtual_keyboard_input = x;
+    }
+    fn show(
+        shared_data: &Arc<Mutex<SharedData>>,
+        close_action: fn(shared_data: &Arc<Mutex<SharedData>>, button: DialogResult),
+    ) {
+        {
+            shared_data
+                .lock()
+                .expect("mutex poisoned")
+                .virtual_keyboard_close_action = close_action;
         }
-        if button_label == "Cancel" {
-            virtual_keyboard_hide(&shared_data, DialogResult::Cancel);
-            return;
+        {
+            shared_data
+                .lock()
+                .expect("mutex poisoned")
+                .virtual_keyboard
+                .as_ref()
+                .unwrap()
+                .show_all();
         }
-        // any other button on the dialog
-        append_input(&shared_data, &button_label);
-    };
+    }
 
-    let label = Label::new(Some("Enter something"));
-    let button_a = Button::with_label("A");
-    button_a.connect_clicked(shared_callback.clone());
-    let button_b = Button::with_label("OK");
-    button_b.connect_clicked(shared_callback.clone());
-    let button_c = Button::with_label("Cancel");
-    button_c.connect_clicked(shared_callback.clone());
+    fn hide(shared_data: &Arc<Mutex<SharedData>>, close_button: DialogResult) {
+        let action = {
+            shared_data
+                .lock()
+                .expect("mutex poisoned")
+                .virtual_keyboard_close_action
+        };
+        action(shared_data, close_button);
+        {
+            shared_data
+                .lock()
+                .expect("mutex poisoned")
+                .virtual_keyboard_close_action = |_, _| {}
+        };
 
-    let virtual_keyboard = gtk::Box::new(gtk::Orientation::Vertical, 5);
-    virtual_keyboard.pack_start(&label, true, true, 0);
-    virtual_keyboard.pack_start(&button_a, true, true, 0);
-    virtual_keyboard.pack_start(&button_b, true, true, 0);
-    virtual_keyboard.pack_start(&button_c, true, true, 0);
-    virtual_keyboard
-}
-
-fn home_screen_create(shared_data: Arc<Mutex<SharedData>>) -> gtk::Box {
-    let shared_callback = move |button: &gtk::Button| {
-        let button_label = button.label().unwrap();
-
-        if button_label == "Keyboard" {
-            shared_data.lock()
-                .expect("mutex poisoned").virtual_keyboard_input = "".to_string();
-            virtual_keyboard_show(&shared_data, move |shared_data, returnbutton: DialogResult| {
-                match returnbutton {
-                    DialogResult::Ok => {
-                        let input = &shared_data.lock()
-                            .expect("mutex poisoned").virtual_keyboard_input;
-                        println!("Keyboard click OK, val = {:?}", input);
-                    }
-                    _ => {
-                        println!("Dialog cancelled.");
-                    }
-                }
-                shared_data.lock()
-                .expect("mutex poisoned").virtual_keyboard_input = "".to_string();
-
-            });
+        {
+            shared_data
+                .lock()
+                .expect("mutex poisoned")
+                .virtual_keyboard
+                .as_ref()
+                .unwrap()
+                .hide();
         }
-    };
+    }
+    fn create_widget(shared_data: Arc<Mutex<SharedData>>) -> gtk::Box {
+        let shared_callback = move |button: &gtk::Button| {
+            let button_label = button.label().unwrap();
 
-    let home_screen = gtk::Box::new(gtk::Orientation::Vertical, 5);
+            if button_label == "OK" {
+                VirtualKeyboard::hide(&shared_data, DialogResult::Ok);
+                return;
+            }
+            if button_label == "Cancel" {
+                VirtualKeyboard::hide(&shared_data, DialogResult::Cancel);
+                return;
+            }
+            // any other button on the dialog
+            VirtualKeyboard::append_input(&shared_data, &button_label);
+        };
 
-    let label = Label::new(Some("Hello, World!"));
-    home_screen.pack_start(&label, true, true, 0);
+        let label = Label::new(Some("Enter something"));
+        let button_a = Button::with_label("A");
+        button_a.connect_clicked(shared_callback.clone());
+        let button_b = Button::with_label("OK");
+        button_b.connect_clicked(shared_callback.clone());
+        let button_c = Button::with_label("Cancel");
+        button_c.connect_clicked(shared_callback.clone());
 
-    let button_opendia = Button::with_label("Keyboard");
-    button_opendia.connect_clicked(shared_callback.clone());
-    home_screen.pack_start(&button_opendia, true, true, 0);
-
-    home_screen.show_all();
-    home_screen
+        let virtual_keyboard = gtk::Box::new(gtk::Orientation::Vertical, 5);
+        virtual_keyboard.pack_start(&label, true, true, 0);
+        virtual_keyboard.pack_start(&button_a, true, true, 0);
+        virtual_keyboard.pack_start(&button_b, true, true, 0);
+        virtual_keyboard.pack_start(&button_c, true, true, 0);
+        virtual_keyboard
+    }
 }
 
 fn main() {
@@ -197,8 +220,8 @@ fn main() {
         Continue(true)
     });
 
-    let home_screen = home_screen_create(Arc::clone(&shared_data));
-    let virtual_keyboard = virtual_keyboard_create(Arc::clone(&shared_data));
+    let home_screen = HomeScreen::create_widget(Arc::clone(&shared_data));
+    let virtual_keyboard = VirtualKeyboard::create_widget(Arc::clone(&shared_data));
 
     let vbox_main = gtk::Box::new(gtk::Orientation::Vertical, 5);
     vbox_main.pack_start(&home_screen, true, true, 0);
