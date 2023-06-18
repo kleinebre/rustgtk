@@ -33,4 +33,5 @@ Opens a custom dialog window from another window. This is a bit rough around the
 
 - src/examples/single_window_multi_dialog_interface.rs
 
-As the previous one, but has a single-window UI and keeps the dialogs all in the same window; a better match for a full-screen touchscreen app.
+As the previous one, but has a single-window UI and keeps the dialogs all in the same window;
+a better match for a full-screen touchscreen app. This also makes the dialog code more modular.
