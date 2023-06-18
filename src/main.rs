@@ -36,31 +36,56 @@ fn append_input(shared_data: &Arc<Mutex<SharedData>>, label: &str) {
     shared_data.lock().expect("mutex poisoned").last_clicked = x;
 }
 
+fn virtual_keyboard_show(shared_data: &Arc<Mutex<SharedData>>) {
+    {
+        shared_data
+            .lock()
+            .expect("mutex poisoned")
+            .home_screen
+            .as_ref()
+            .unwrap()
+            .hide();
+    }
+    {
+        shared_data
+            .lock()
+            .expect("mutex poisoned")
+            .virtual_keyboard
+            .as_ref()
+            .unwrap()
+            .show_all();
+    }
+}
+
+fn virtual_keyboard_hide(shared_data: &Arc<Mutex<SharedData>>) {
+    {
+        shared_data
+            .lock()
+            .expect("mutex poisoned")
+            .home_screen
+            .as_ref()
+            .unwrap()
+            .show_all();
+    }
+    {
+        shared_data
+            .lock()
+            .expect("mutex poisoned")
+            .virtual_keyboard
+            .as_ref()
+            .unwrap()
+            .hide();
+    }
+}
+
 fn virtual_keyboard_create(shared_data: Arc<Mutex<SharedData>>) -> gtk::Box {
     let shared_callback = move |button: &gtk::Button| {
         let button_label = button.label().unwrap();
+
         if button_label == "A" {
-            {
-                shared_data
-                    .lock()
-                    .expect("mutex poisoned")
-                    .virtual_keyboard
-                    .as_ref()
-                    .unwrap()
-                    .hide();
-            }
-            {
-                shared_data
-                    .lock()
-                    .expect("mutex poisoned")
-                    .home_screen
-                    .as_ref()
-                    .unwrap()
-                    .show_all();
-            }
+            virtual_keyboard_hide(&shared_data);
         }
         // any other button on the dialog
-        println!("Button {} was clicked", button_label);
         append_input(&shared_data, &button_label);
     };
 
@@ -82,25 +107,8 @@ fn home_screen_create(shared_data: Arc<Mutex<SharedData>>) -> gtk::Box {
         let button_label = button.label().unwrap();
 
         if button_label == "Keyboard" {
-            {
-                shared_data
-                    .lock()
-                    .expect("mutex poisoned")
-                    .home_screen
-                    .as_ref()
-                    .unwrap()
-                    .hide();
-            }
-            {
-                shared_data
-                    .lock()
-                    .expect("mutex poisoned")
-                    .virtual_keyboard
-                    .as_ref()
-                    .unwrap()
-                    .show_all();
-            }
             append_input(&shared_data, &button_label);
+            virtual_keyboard_show(&shared_data);
         }
     };
 
