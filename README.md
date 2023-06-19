@@ -42,3 +42,7 @@ This shows how one might implement the most basic on-screen keyboard dialog. The
 - src/examples/struct_based_keyboard.rs
 
 As above but now with all the structures properly defined.
+
+- src/examples/key_handler.rs
+
+Demonstrates how to intercept keyboard events
