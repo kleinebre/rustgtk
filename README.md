@@ -38,3 +38,7 @@ As the previous one, but has a single-window UI and keeps the dialogs all in the
 - src/examples/one_button_keyboard.rs
 
 This shows how one might implement the most basic on-screen keyboard dialog. There's no display, no backspace, just one button and OK/Cancel. The result is handled with a callback.
+
+- src/examples/struct_based_keyboard.rs
+
+As above but now with all the structures properly defined.
