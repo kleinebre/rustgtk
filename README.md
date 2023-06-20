@@ -46,3 +46,7 @@ As above but now with all the structures properly defined.
 - src/examples/key_handler.rs
 
 Demonstrates how to intercept keyboard events
+
+- src/examples/struct_keyboard_w_blinking_cursor.rs
+
+Implements a blinking cursor through css styling, label ID and Pango markup.
