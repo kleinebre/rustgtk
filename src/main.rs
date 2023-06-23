@@ -551,7 +551,7 @@ impl VirtualKeyboard {
         let shared_callback = move |button: &gtk::Button| {
             Self::button_callback(button, &shared_data);
         };
-
+        screen.set_xalign(0.0);
         // draw the keyboard
         let keys = Self::define_keysets();
         let mut keyrow: usize = 1;
@@ -617,9 +617,7 @@ impl VirtualKeyboard {
         for bar in rowframes {
             virtual_keyboard.pack_start(&bar, true, true, 0);
         }
-        //virtual_keyboard.pack_start(&button_a, true, true, 0);
-        //virtual_keyboard.pack_start(&button_b, true, true, 0);
-        //virtual_keyboard.pack_start(&button_c, true, true, 0);
+        virtual_keyboard.set_border_width(4);
         virtual_keyboard
     }
     fn new(shared_data: Arc<Mutex<SharedData>>, prompt_text: &str) -> VirtualKeyboard {
@@ -653,7 +651,6 @@ impl VirtualKeyboard {
 fn main() {
     gtk::init().expect("Failed to initialize GTK.");
     let vbox_main = gtk::Box::new(gtk::Orientation::Vertical, 5);
-
     let shared_data = Arc::new(Mutex::new(SharedData::new()));
 
     let virtual_keyboard =
