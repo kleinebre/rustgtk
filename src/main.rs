@@ -356,7 +356,7 @@ impl VirtualKeyboard {
                 ("+".to_string(), "=".to_string(), "€".to_string()),
             ),
             (
-                1.5,
+                2.0,
                 "Backspace".to_string(),
                 ("⌫".to_string(), "⌫".to_string(), "⌫".to_string()),
             ),
@@ -423,6 +423,11 @@ impl VirtualKeyboard {
                 1.0,
                 "".to_string(),
                 ("@".to_string(), "'".to_string(), "#".to_string()),
+            ),
+            (
+                2.5,
+                "spacer".to_string(),
+                ("".to_string(), "".to_string(), "".to_string()),
             ),
         ]
         .to_vec();
@@ -572,8 +577,7 @@ impl VirtualKeyboard {
                         }
                     }
                 }*/
-                let w: i32 = (width * 45.0) as i32;
-                println!("w={}", w);
+                let w: i32 = (width * 47.0) as i32;
                 if name == "spacer" {
                     let spacer_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
                     spacer_box.set_width_request(w);
@@ -585,6 +589,8 @@ impl VirtualKeyboard {
                         .width_request(w)
                         .build();
                     button.connect_clicked(shared_callback.clone());
+                    button.set_hexpand(true);
+                    //button.set_vexpand(true);
                     button.connect("key_press_event", false, |values| {
                         println!("Button a!");
                         return Some(true.into());
@@ -678,11 +684,11 @@ fn main() {
     // Load the CSS data
     css_provider
         .load_from_data(
-            "button { font-family: 'Arial'; font-size: 30px; font-weight: bold; } \
+            "button { font-family: Verdana; font-size: 20px; font-weight: bold; } \
             #ok { color: #009900; } \
             #cancel { color: #ff0000; } \
-            #screen { font-family: 'Courier'; font-size: 30px; font-weight: normal; } \
-            #prompt { font-family: 'Arial'; font-size: 30px; font-weight: bold; } \
+            #screen { font-family: 'Courier'; background: #eeeeee; font-size: 30px; font-weight: bold; } \
+            #prompt { font-family: 'Arial'; font-size: 30px; font-weight: bold; background: #cccccc; color: #000000;} \
             "
             .as_bytes(),
         )
