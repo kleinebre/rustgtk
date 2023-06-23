@@ -231,7 +231,9 @@ impl VirtualKeyboard {
         {
             let mut input_field = self.input.lock().expect("poison");
             let mut stringlen: usize = 0;
-            for (l, c) in input_field.chars().enumerate() { stringlen = l; }
+            for (l, c) in input_field.chars().enumerate() {
+                stringlen = l;
+            }
             let mut x = "".to_string();
             for (charnum, c) in input_field.chars().enumerate() {
                 if charnum == stringlen {
@@ -241,7 +243,7 @@ impl VirtualKeyboard {
             }
             *input_field = x;
             //if input_field.len() > 0 {
-                //*input_field.pop(); // = input_field[0..input_field.len() - 1].to_string();
+            //*input_field.pop(); // = input_field[0..input_field.len() - 1].to_string();
             //}
         }
         self.update_label(None);
@@ -427,9 +429,14 @@ impl VirtualKeyboard {
         keys.push(row.clone());
         row = [
             (
-                2.0,
-                "Shift".to_string(),
-                ("⇧".to_string(), "⇧".to_string(), "⇧".to_string()),
+                0.5,
+                "spacer".to_string(),
+                ("".to_string(), "".to_string(), "".to_string()),
+            ),
+            (
+                1.0,
+                "".to_string(),
+                ("\\".to_string(), "`".to_string(), "~".to_string()),
             ),
             (
                 1.0,
@@ -476,6 +483,11 @@ impl VirtualKeyboard {
                 "".to_string(),
                 (".".to_string(), ">".to_string(), "?".to_string()),
             ),
+            (
+                3.0,
+                "Shift".to_string(),
+                ("⇧".to_string(), "⇧".to_string(), "⇧".to_string()),
+            ),
         ]
         .to_vec();
         keys.push(row.clone());
@@ -486,12 +498,7 @@ impl VirtualKeyboard {
                 ("🗙".to_string(), "🗙".to_string(), "🗙".to_string()),
             ),
             (
-                1.0,
-                "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
-            ),
-            (
-                1.0,
+                0.25,
                 "spacer".to_string(),
                 ("".to_string(), "".to_string(), "".to_string()),
             ),
@@ -501,19 +508,9 @@ impl VirtualKeyboard {
                 ("◁".to_string(), "◁".to_string(), "◁".to_string()),
             ),
             (
-                1.0,
-                "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
-            ),
-            (
                 8.0,
                 "spacebar".to_string(),
                 (" ".to_string(), " ".to_string(), " ".to_string()),
-            ),
-            (
-                1.0,
-                "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
             ),
             (
                 1.0,
@@ -521,27 +518,12 @@ impl VirtualKeyboard {
                 ("▷".to_string(), "▷".to_string(), "▷".to_string()),
             ),
             (
-                1.0,
+                0.25,
                 "spacer".to_string(),
                 ("".to_string(), "".to_string(), "".to_string()),
             ),
             (
-                1.0,
-                "".to_string(),
-                ("\\".to_string(), "`".to_string(), "~".to_string()),
-            ),
-            (
-                1.0,
-                "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
-            ),
-            (
-                1.0,
-                "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
-            ),
-            (
-                2.0,
+                3.0,
                 "ok".to_string(),
                 (
                     SYMBOL_ENTER.to_string(),
@@ -569,14 +551,12 @@ impl VirtualKeyboard {
         let keys = Self::define_keysets();
         let mut keyrow: usize = 1;
 
-        let mut rowframes: Vec<gtk::ActionBar> = vec![];
+        let mut rowframes: Vec<gtk::Box> = vec![];
         let mut keyset: usize = 0;
 
         for row in keys {
             keyrow += 1;
-            let mut rowframe = gtk::ActionBar::new();
-            //gtk::Box::builder().build();
-            //rowframe.set_orientation(gtk::Orientation::Horizontal);
+            let mut rowframe = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             let mut keycol: usize = 0;
             for key in row {
                 keycol += 1;
@@ -592,25 +572,25 @@ impl VirtualKeyboard {
                         }
                     }
                 }*/
-                let w: i32 = (width * 2.0) as i32;
+                let w: i32 = (width * 45.0) as i32;
                 println!("w={}", w);
                 if name == "spacer" {
-                    let spacer_box = gtk::Image::new();
-                    rowframe.pack_start(&spacer_box);
+                    let spacer_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+                    spacer_box.set_width_request(w);
+                    rowframe.pack_start(&spacer_box, false, false, 0);
                 } else {
                     let button = Button::builder()
                         .label(&label)
                         .name(name)
                         .width_request(w)
-                        //.pack_direction(PackDirecion::Ltr)
                         .build();
                     button.connect_clicked(shared_callback.clone());
                     button.connect("key_press_event", false, |values| {
                         println!("Button a!");
                         return Some(true.into());
                     });
-                    //rowframe.alignment(Align::Center);
-                    rowframe.pack_start(&button);
+
+                    rowframe.pack_start(&button, false, false, 0);
                 }
             }
             rowframes.push(rowframe);
@@ -703,8 +683,6 @@ fn main() {
             #cancel { color: #ff0000; } \
             #screen { font-family: 'Courier'; font-size: 30px; font-weight: normal; } \
             #prompt { font-family: 'Arial'; font-size: 30px; font-weight: bold; } \
-            #spacebar { padding-left: 200px; }
-            #spacer { margin-left: 50px; }
             "
             .as_bytes(),
         )
