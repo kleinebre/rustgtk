@@ -225,11 +225,24 @@ impl VirtualKeyboard {
     }
 
     fn backspace(&self) {
+        // This code is pretty ugly and inefficient (not that that matters for
+        // strings of reasonable finite length)
+        // but it does the trick of doing a backspace correctly, even for unicode strings.
         {
             let mut input_field = self.input.lock().expect("poison");
-            if input_field.len() > 0 {
-                *input_field = input_field[0..input_field.len() - 1].to_string();
+            let mut stringlen: usize = 0;
+            for (l, c) in input_field.chars().enumerate() { stringlen = l; }
+            let mut x = "".to_string();
+            for (charnum, c) in input_field.chars().enumerate() {
+                if charnum == stringlen {
+                    break;
+                }
+                x.push(c);
             }
+            *input_field = x;
+            //if input_field.len() > 0 {
+                //*input_field.pop(); // = input_field[0..input_field.len() - 1].to_string();
+            //}
         }
         self.update_label(None);
     }
@@ -469,7 +482,7 @@ impl VirtualKeyboard {
         row = [
             (
                 3.0,
-                "Cancel".to_string(),
+                "cancel".to_string(),
                 ("🗙".to_string(), "🗙".to_string(), "🗙".to_string()),
             ),
             (
@@ -529,7 +542,7 @@ impl VirtualKeyboard {
             ),
             (
                 2.0,
-                "Ok".to_string(),
+                "ok".to_string(),
                 (
                     SYMBOL_ENTER.to_string(),
                     SYMBOL_ENTER.to_string(),
@@ -686,6 +699,8 @@ fn main() {
     css_provider
         .load_from_data(
             "button { font-family: 'Arial'; font-size: 30px; font-weight: bold; } \
+            #ok { color: #009900; } \
+            #cancel { color: #ff0000; } \
             #screen { font-family: 'Courier'; font-size: 30px; font-weight: normal; } \
             #prompt { font-family: 'Arial'; font-size: 30px; font-weight: bold; } \
             #spacebar { padding-left: 200px; }
