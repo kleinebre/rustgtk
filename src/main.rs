@@ -611,7 +611,7 @@ impl VirtualKeyboard {
             (
                 3.0,
                 ID_CANCEL.to_string(),
-                ["🗙".to_string(), "🗙".to_string(), "🗙".to_string()],
+                [SYMBOL_CANCEL.to_string(), SYMBOL_CANCEL.to_string(), SYMBOL_CANCEL.to_string()],
             ),
             (
                 0.25,
