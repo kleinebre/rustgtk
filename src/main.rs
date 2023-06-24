@@ -10,13 +10,21 @@ pub const SCREEN_WIDTH: i32 = 800;
 pub const BORDER_WIDTH: i32 = 4;
 pub const SCREEN_HEIGHT: i32 = 480;
 pub const SYMBOL_ENTER: &str = "✔";
+pub const ID_ENTER: &str = "ok";
 pub const SYMBOL_CANCEL: &str = "🗙";
+pub const ID_CANCEL: &str = "cancel";
 pub const SYMBOL_BACKSPACE: &str = "⌫";
+pub const ID_BACKSPACE: &str = "backspace";
 pub const SYMBOL_LEFT: &str = "◁";
+pub const ID_LEFT: &str = "left";
 pub const SYMBOL_RIGHT: &str = "▷";
-pub const SYMBOL_INS: &str = "Ins";
-pub const SYMBOL_DEL: &str = "Del";
+pub const ID_RIGHT: &str = "right";
+pub const SYMBOL_INSERT: &str = "Ins";
+pub const ID_INSERT: &str = "insert";
+pub const SYMBOL_DELETE: &str = "Del";
+pub const ID_DELETE: &str = "delete";
 pub const SYMBOL_SHIFT: &str = "⇧";
+pub const ID_SHIFT: &str = "shift";
 //"↵";
 
 #[derive(Debug)]
@@ -320,29 +328,58 @@ impl VirtualKeyboard {
         //let button_name = button.name().unwrap();
         let shared = shared_data.lock().expect("poison");
         let virtual_keyboard = shared.virtual_keyboard.as_ref().unwrap();
-        if button_label == SYMBOL_BACKSPACE {
+
+        let name_property: glib::Value = button.property::<glib::Value>("name");
+        let special_button_name = if let Ok(string_value) = name_property.get::<String>() {
+            if string_value == "" {
+                "".to_string()
+            } else {
+                // special button clicked!
+                string_value
+            }
+        } else {
+            "".to_string()
+        };
+
+        if special_button_name == "" {
+            virtual_keyboard.append_input(&button_label);
+            return;
+        }
+
+        if special_button_name == ID_BACKSPACE {
             virtual_keyboard.backspace();
             return;
         }
-        if button_label == SYMBOL_ENTER {
+        if special_button_name == ID_SHIFT {
+            virtual_keyboard.next_keyset();
+            return;
+        }
+        if special_button_name == ID_LEFT {
+            return;
+        }
+        if special_button_name == ID_RIGHT {
+            return;
+        }
+        if special_button_name == ID_INSERT {
+            return;
+        }
+        if special_button_name == ID_DELETE {
+            return;
+        }
+        if special_button_name == ID_ENTER {
             virtual_keyboard.hide();
             let action = virtual_keyboard.close_action.lock().expect("poison");
             action(&shared, DialogResult::Ok);
             return;
         }
-        if button_label == SYMBOL_SHIFT {
-            virtual_keyboard.next_keyset();
-            return;
-        }
-        if button_label == SYMBOL_CANCEL {
+        if special_button_name == ID_CANCEL {
             virtual_keyboard.hide();
             let action = virtual_keyboard.close_action.lock().expect("poison");
             action(&shared, DialogResult::Cancel);
             return;
         }
-        // any other button on the dialog
-        virtual_keyboard.append_input(&button_label);
     }
+
     fn define_keysets() -> Vec<Vec<KeyDef>> {
         let mut keys: Vec<Vec<KeyDef>> = vec![];
 
@@ -414,7 +451,7 @@ impl VirtualKeyboard {
             ),
             (
                 2.0,
-                "Backspace".to_string(),
+                ID_BACKSPACE.to_string(),
                 ["⌫".to_string(), "⌫".to_string(), "⌫".to_string()],
             ),
         ]
@@ -423,11 +460,11 @@ impl VirtualKeyboard {
         row = [
             (
                 1.0,
-                "delete".to_string(),
+                ID_DELETE.to_string(),
                 [
-                    SYMBOL_DEL.to_string(),
-                    SYMBOL_DEL.to_string(),
-                    SYMBOL_DEL.to_string(),
+                    SYMBOL_DELETE.to_string(),
+                    SYMBOL_DELETE.to_string(),
+                    SYMBOL_DELETE.to_string(),
                 ],
             ),
             (
@@ -492,11 +529,11 @@ impl VirtualKeyboard {
             ),
             (
                 1.0,
-                "insert".to_string(),
+                ID_INSERT.to_string(),
                 [
-                    SYMBOL_INS.to_string(),
-                    SYMBOL_INS.to_string(),
-                    SYMBOL_INS.to_string(),
+                    SYMBOL_INSERT.to_string(),
+                    SYMBOL_INSERT.to_string(),
+                    SYMBOL_INSERT.to_string(),
                 ],
             ),
         ]
@@ -505,8 +542,12 @@ impl VirtualKeyboard {
         row = [
             (
                 1.75,
-                SYMBOL_SHIFT.to_string(),
-                [SYMBOL_SHIFT.to_string(), SYMBOL_SHIFT.to_string(), SYMBOL_SHIFT.to_string()],
+                ID_SHIFT.to_string(),
+                [
+                    SYMBOL_SHIFT.to_string(),
+                    SYMBOL_SHIFT.to_string(),
+                    SYMBOL_SHIFT.to_string(),
+                ],
             ),
             (
                 1.0,
@@ -569,7 +610,7 @@ impl VirtualKeyboard {
         row = [
             (
                 3.0,
-                "cancel".to_string(),
+                ID_CANCEL.to_string(),
                 ["🗙".to_string(), "🗙".to_string(), "🗙".to_string()],
             ),
             (
@@ -579,7 +620,7 @@ impl VirtualKeyboard {
             ),
             (
                 1.0,
-                "Left".to_string(),
+                ID_LEFT.to_string(),
                 [
                     SYMBOL_LEFT.to_string(),
                     SYMBOL_LEFT.to_string(),
@@ -593,7 +634,7 @@ impl VirtualKeyboard {
             ),
             (
                 1.0,
-                "Right".to_string(),
+                ID_RIGHT.to_string(),
                 [
                     SYMBOL_RIGHT.to_string(),
                     SYMBOL_RIGHT.to_string(),
@@ -607,7 +648,7 @@ impl VirtualKeyboard {
             ),
             (
                 3.0,
-                "ok".to_string(),
+                ID_ENTER.to_string(),
                 [
                     SYMBOL_ENTER.to_string(),
                     SYMBOL_ENTER.to_string(),
@@ -642,7 +683,7 @@ impl VirtualKeyboard {
             for row in &keys {
                 keyrow += 1;
                 let mut rowframe = gtk::Box::builder().name("keyrow").build();
-                rowframe.set_width_request(SCREEN_WIDTH-(BORDER_WIDTH*2));
+                rowframe.set_width_request(SCREEN_WIDTH - (BORDER_WIDTH * 2));
                 let style_context = rowframe.style_context();
                 style_context.add_class("keyboard_button_row");
                 let mut keycol: usize = 0;
@@ -666,10 +707,7 @@ impl VirtualKeyboard {
                         spacer_box.set_width_request(w);
                         rowframe.pack_start(&spacer_box, false, false, 0);
                     } else {
-                        let button = Button::builder()
-                            .name(name)
-                            .width_request(w)
-                            .build();
+                        let button = Button::builder().name(name).width_request(w).build();
                         let button_label = Label::new(Some(&label));
                         button_label.set_width_request(w);
                         button.add(&button_label);
@@ -678,13 +716,13 @@ impl VirtualKeyboard {
                         let style_context = button.style_context();
                         style_context.add_class("keyboard_button");
                         button.set_hexpand(true);
+                        button.set_property("name", name);
                         //button.halign(gtk::Align::Fill);
                         //button.set_vexpand(true);
                         button.connect("key_press_event", false, |values| {
                             println!("Button a!");
                             return Some(true.into());
                         });
-
                         rowframe.pack_start(&button, false, true, 0);
                     }
                 }
