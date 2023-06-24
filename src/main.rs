@@ -11,6 +11,11 @@ pub const SCREEN_HEIGHT: i32 = 480;
 pub const SYMBOL_ENTER: &str = "✔";
 pub const SYMBOL_CANCEL: &str = "🗙";
 pub const SYMBOL_BACKSPACE: &str = "⌫";
+pub const SYMBOL_LEFT: &str = "◁";
+pub const SYMBOL_RIGHT: &str = "▷";
+pub const SYMBOL_INS: &str = "Ins";
+pub const SYMBOL_DEL: &str = "Del";
+pub const SYMBOL_SHIFT: &str = "⌫";
 //"↵";
 
 #[derive(Debug)]
@@ -123,7 +128,7 @@ struct VirtualKeyboard {
     cursor_state: Mutex<bool>,
 }
 // key width, special key name, labels
-type KeyDef = (f32, String, (String, String, String));
+type KeyDef = (f32, String, [String; 3]);
 impl VirtualKeyboard {
     fn pre_cursor(&self, input: &str, cursorpos: usize) -> Option<String> {
         // given a string and a cursor position,
@@ -266,6 +271,8 @@ impl VirtualKeyboard {
     fn hide(&self) {
         self.widget.hide();
     }
+    fn next_keyset(&self) {}
+
     fn button_callback(button: &gtk::Button, shared_data: &Arc<Mutex<SharedData>>) {
         // handles keyboard button mouse clicks, mostly.
         let button_label = button.label().unwrap();
@@ -278,6 +285,12 @@ impl VirtualKeyboard {
         }
         if button_label == SYMBOL_ENTER {
             virtual_keyboard.hide();
+            let action = virtual_keyboard.close_action.lock().expect("poison");
+            action(&shared, DialogResult::Ok);
+            return;
+        }
+        if button_label == SYMBOL_SHIFT {
+            virtual_keyboard.next_keyset();
             let action = virtual_keyboard.close_action.lock().expect("poison");
             action(&shared, DialogResult::Ok);
             return;
@@ -296,69 +309,74 @@ impl VirtualKeyboard {
 
         let mut row: Vec<KeyDef> = vec![
             (
-                1.0,
-                "".to_string(),
-                ("q".to_string(), "Q".to_string(), "1".to_string()),
+                0.5,
+                "spacer".to_string(),
+                ["".to_string(), "".to_string(), "".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("w".to_string(), "W".to_string(), "2".to_string()),
+                ["q".to_string(), "Q".to_string(), "1".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("e".to_string(), "E".to_string(), "3".to_string()),
+                ["w".to_string(), "W".to_string(), "2".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("r".to_string(), "R".to_string(), "4".to_string()),
+                ["e".to_string(), "E".to_string(), "3".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("t".to_string(), "T".to_string(), "5".to_string()),
+                ["r".to_string(), "R".to_string(), "4".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("y".to_string(), "Y".to_string(), "6".to_string()),
+                ["t".to_string(), "T".to_string(), "5".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("u".to_string(), "U".to_string(), "7".to_string()),
+                ["y".to_string(), "Y".to_string(), "6".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("i".to_string(), "I".to_string(), "8".to_string()),
+                ["u".to_string(), "U".to_string(), "7".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("o".to_string(), "O".to_string(), "9".to_string()),
+                ["i".to_string(), "I".to_string(), "8".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("p".to_string(), "P".to_string(), "0".to_string()),
+                ["o".to_string(), "O".to_string(), "9".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("-".to_string(), "_".to_string(), "¬".to_string()),
+                ["p".to_string(), "P".to_string(), "0".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("+".to_string(), "=".to_string(), "€".to_string()),
+                ["-".to_string(), "_".to_string(), "¬".to_string()],
+            ),
+            (
+                1.0,
+                "".to_string(),
+                ["+".to_string(), "=".to_string(), "€".to_string()],
             ),
             (
                 2.0,
                 "Backspace".to_string(),
-                ("⌫".to_string(), "⌫".to_string(), "⌫".to_string()),
+                ["⌫".to_string(), "⌫".to_string(), "⌫".to_string()],
             ),
         ]
         .to_vec();
@@ -366,132 +384,155 @@ impl VirtualKeyboard {
         row = [
             (
                 1.0,
-                "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
+                "delete".to_string(),
+                [
+                    SYMBOL_DEL.to_string(),
+                    SYMBOL_DEL.to_string(),
+                    SYMBOL_DEL.to_string(),
+                ],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("a".to_string(), "A".to_string(), "!".to_string()),
+                ["a".to_string(), "A".to_string(), "!".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("s".to_string(), "S".to_string(), "\"".to_string()),
+                ["s".to_string(), "S".to_string(), "\"".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("d".to_string(), "D".to_string(), "£".to_string()),
+                ["d".to_string(), "D".to_string(), "£".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("f".to_string(), "F".to_string(), "$".to_string()),
+                ["f".to_string(), "F".to_string(), "$".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("g".to_string(), "G".to_string(), "%".to_string()),
+                ["g".to_string(), "G".to_string(), "%".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("h".to_string(), "H".to_string(), "^".to_string()),
+                ["h".to_string(), "H".to_string(), "^".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("j".to_string(), "J".to_string(), "&".to_string()),
+                ["j".to_string(), "J".to_string(), "&".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("k".to_string(), "K".to_string(), "*".to_string()),
+                ["k".to_string(), "K".to_string(), "*".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("l".to_string(), "L".to_string(), "(".to_string()),
+                ["l".to_string(), "L".to_string(), "(".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                (";".to_string(), ":".to_string(), ")".to_string()),
+                [";".to_string(), ":".to_string(), ")".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("@".to_string(), "'".to_string(), "#".to_string()),
+                ["@".to_string(), "'".to_string(), "`".to_string()],
             ),
             (
-                2.5,
-                "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
+                1.0,
+                "".to_string(),
+                ["#".to_string(), "~".to_string(), "#".to_string()],
             ),
-        ]
-        .to_vec();
-        keys.push(row.clone());
-        row = [
             (
                 0.5,
                 "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
+                ["".to_string(), "".to_string(), "".to_string()],
+            ),
+            (
+                1.0,
+                "insert".to_string(),
+                [
+                    SYMBOL_INS.to_string(),
+                    SYMBOL_INS.to_string(),
+                    SYMBOL_INS.to_string(),
+                ],
+            ),
+        ]
+        .to_vec();
+        keys.push(row.clone());
+        row = [
+            (
+                1.5,
+                "spacer".to_string(),
+                ["".to_string(), "".to_string(), "".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("\\".to_string(), "`".to_string(), "~".to_string()),
+                ["z".to_string(), "Z".to_string(), "{".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("z".to_string(), "Z".to_string(), "|".to_string()),
+                ["x".to_string(), "X".to_string(), "}".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("x".to_string(), "X".to_string(), "{".to_string()),
+                ["c".to_string(), "C".to_string(), "[".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("c".to_string(), "C".to_string(), "}".to_string()),
+                ["v".to_string(), "V".to_string(), "]".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("v".to_string(), "V".to_string(), "[".to_string()),
+                ["b".to_string(), "B".to_string(), "<".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("b".to_string(), "B".to_string(), "]".to_string()),
+                ["n".to_string(), "N".to_string(), ">".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("n".to_string(), "N".to_string(), "<".to_string()),
+                ["m".to_string(), "M".to_string(), "|".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                ("m".to_string(), "M".to_string(), ">".to_string()),
+                [",".to_string(), "<".to_string(), ",".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                (",".to_string(), "<".to_string(), "/".to_string()),
+                [".".to_string(), ">".to_string(), ".".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
-                (".".to_string(), ">".to_string(), "?".to_string()),
+                ["/".to_string(), "?".to_string(), "\\".to_string()],
             ),
             (
-                3.0,
+                0.5,
+                "spacer".to_string(),
+                ["".to_string(), "".to_string(), "".to_string()],
+            ),
+            (
+                2.5,
                 "Shift".to_string(),
-                ("⇧".to_string(), "⇧".to_string(), "⇧".to_string()),
+                ["⇧".to_string(), "⇧".to_string(), "⇧".to_string()],
             ),
         ]
         .to_vec();
@@ -500,41 +541,49 @@ impl VirtualKeyboard {
             (
                 3.0,
                 "cancel".to_string(),
-                ("🗙".to_string(), "🗙".to_string(), "🗙".to_string()),
+                ["🗙".to_string(), "🗙".to_string(), "🗙".to_string()],
             ),
             (
                 0.25,
                 "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
+                ["".to_string(), "".to_string(), "".to_string()],
             ),
             (
                 1.0,
                 "Left".to_string(),
-                ("◁".to_string(), "◁".to_string(), "◁".to_string()),
+                [
+                    SYMBOL_LEFT.to_string(),
+                    SYMBOL_LEFT.to_string(),
+                    SYMBOL_LEFT.to_string(),
+                ],
             ),
             (
                 8.0,
                 "spacebar".to_string(),
-                (" ".to_string(), " ".to_string(), " ".to_string()),
+                [" ".to_string(), " ".to_string(), " ".to_string()],
             ),
             (
                 1.0,
                 "Right".to_string(),
-                ("▷".to_string(), "▷".to_string(), "▷".to_string()),
+                [
+                    SYMBOL_RIGHT.to_string(),
+                    SYMBOL_RIGHT.to_string(),
+                    SYMBOL_RIGHT.to_string(),
+                ],
             ),
             (
                 0.25,
                 "spacer".to_string(),
-                ("".to_string(), "".to_string(), "".to_string()),
+                ["".to_string(), "".to_string(), "".to_string()],
             ),
             (
                 3.0,
                 "ok".to_string(),
-                (
+                [
                     SYMBOL_ENTER.to_string(),
                     SYMBOL_ENTER.to_string(),
                     SYMBOL_ENTER.to_string(),
-                ),
+                ],
             ),
         ]
         .to_vec();
@@ -557,59 +606,51 @@ impl VirtualKeyboard {
         let mut keyrow: usize = 1;
 
         let mut rowframes: Vec<gtk::Box> = vec![];
-        let mut keyset: usize = 0;
 
-        for row in keys {
-            keyrow += 1;
-            let mut rowframe = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-            let mut keycol: usize = 0;
-            for key in row {
-                keycol += 1;
-                let (width, name, labels) = key;
-                let mut bgcolor = "#FFFFFF";
-                let mut fgcolor = "#000000";
-                let label = labels.0;
-                /*if self.accept != "" {
-                    if !(self.accept.contains(label)) {
-                        if !(self.is_special_key(label)) {
-                            bgcolor = "#DDDDDD";
-                            fgcolor = "#999999";
+        for keyset in 0..1 {
+            for row in &keys {
+                keyrow += 1;
+                let mut rowframe = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+                let mut keycol: usize = 0;
+                for key in row {
+                    keycol += 1;
+                    let (width, name, labels) = key;
+                    let mut bgcolor = "#FFFFFF";
+                    let mut fgcolor = "#000000";
+                    let label = labels[keyset].clone();
+                    /*if self.accept != "" {
+                        if !(self.accept.contains(label)) {
+                            if !(self.is_special_key(label)) {
+                                bgcolor = "#DDDDDD";
+                                fgcolor = "#999999";
+                            }
                         }
-                    }
-                }*/
-                let w: i32 = (width * 47.0) as i32;
-                if name == "spacer" {
-                    let spacer_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-                    spacer_box.set_width_request(w);
-                    rowframe.pack_start(&spacer_box, false, false, 0);
-                } else {
-                    let button = Button::builder()
-                        .label(&label)
-                        .name(name)
-                        .width_request(w)
-                        .build();
-                    button.connect_clicked(shared_callback.clone());
-                    button.set_hexpand(true);
-                    //button.set_vexpand(true);
-                    button.connect("key_press_event", false, |values| {
-                        println!("Button a!");
-                        return Some(true.into());
-                    });
+                    }*/
+                    let w: i32 = (width * 47.0) as i32;
+                    if name == "spacer" {
+                        let spacer_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+                        spacer_box.set_width_request(w);
+                        rowframe.pack_start(&spacer_box, false, false, 0);
+                    } else {
+                        let button = Button::builder()
+                            .label(&label)
+                            .name(name)
+                            .width_request(w)
+                            .build();
+                        button.connect_clicked(shared_callback.clone());
+                        button.set_hexpand(true);
+                        //button.set_vexpand(true);
+                        button.connect("key_press_event", false, |values| {
+                            println!("Button a!");
+                            return Some(true.into());
+                        });
 
-                    rowframe.pack_start(&button, false, false, 0);
+                        rowframe.pack_start(&button, false, false, 0);
+                    }
                 }
+                rowframes.push(rowframe);
             }
-            rowframes.push(rowframe);
         }
-        /*
-        let button_a = Button::with_label("A");
-        button_a.connect_clicked(shared_callback.clone());
-        //button_a.connect("key_press_event", false, |values| {println!("Button a!"); return true;} );
-        let button_b = Button::with_label("OK");
-        button_b.connect_clicked(shared_callback.clone());
-        let button_c = Button::with_label("Cancel");
-        button_c.connect_clicked(shared_callback.clone());
-        */
         let virtual_keyboard = gtk::Box::new(gtk::Orientation::Vertical, 5);
         virtual_keyboard.pack_start(prompt, true, true, 0);
         virtual_keyboard.pack_start(screen, true, true, 0);
@@ -684,8 +725,10 @@ fn main() {
             "button { font-family: Verdana; font-size: 20px; font-weight: bold; } \
             #ok { color: #009900; } \
             #cancel { color: #ff0000; } \
+            #delete { font-family: Verdana; font-size: 12px; font-weight: normal; color: #000000; } \
+            #insert { font-family: Verdana; font-size: 12px; font-weight: normal; color: #000000; } \
             #screen { font-family: 'Courier'; background: #eeeeee; font-size: 30px; font-weight: bold; } \
-            #prompt { font-family: 'Arial'; font-size: 30px; font-weight: bold; background: #cccccc; color: #000000;} \
+            #prompt { font-family: 'Verdana'; font-size: 30px; font-weight: bold; background: #cccccc; color: #000000;} \
             "
             .as_bytes(),
         )
