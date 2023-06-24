@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 pub const SCREEN_WIDTH: i32 = 800;
+pub const BORDER_WIDTH: i32 = 4;
 pub const SCREEN_HEIGHT: i32 = 480;
 pub const SYMBOL_ENTER: &str = "✔";
 pub const SYMBOL_CANCEL: &str = "🗙";
@@ -72,6 +73,7 @@ impl HomeScreen {
         home_screen.show();
         virtual_keyboard.reset_input();
     }
+
     fn button_callback(button: &gtk::Button, shared_data: &Arc<Mutex<SharedData>>) {
         let button_label = button.label();
         match button_label {
@@ -297,9 +299,24 @@ impl VirtualKeyboard {
         self.show_active_key_layer();
     }
 
+    fn button_label_text(button: &gtk::Button) -> String {
+        let child = button.child();
+        if let Some(widget) = child {
+            // {
+            let labelwidget = widget.downcast_ref::<Label>();
+            if let Some(label) = labelwidget {
+                return label.text().to_string();
+            }
+        }
+        print!("No label found");
+        return "".to_string();
+    }
+
     fn button_callback(button: &gtk::Button, shared_data: &Arc<Mutex<SharedData>>) {
         // handles keyboard button mouse clicks, mostly.
-        let button_label = button.label().unwrap();
+        // Our button contains a label which contains the text (so that button width
+        // is kept fixed) so we need some trickery to read the button label.
+        let button_label = Self::button_label_text(&button);
         //let button_name = button.name().unwrap();
         let shared = shared_data.lock().expect("poison");
         let virtual_keyboard = shared.virtual_keyboard.as_ref().unwrap();
@@ -466,17 +483,12 @@ impl VirtualKeyboard {
             (
                 1.0,
                 "".to_string(),
-                ["@".to_string(), "'".to_string(), "`".to_string()],
+                ["'".to_string(), "@".to_string(), "`".to_string()],
             ),
             (
                 1.0,
                 "".to_string(),
                 ["#".to_string(), "~".to_string(), "#".to_string()],
-            ),
-            (
-                0.5,
-                "spacer".to_string(),
-                ["".to_string(), "".to_string(), "".to_string()],
             ),
             (
                 1.0,
@@ -492,9 +504,9 @@ impl VirtualKeyboard {
         keys.push(row.clone());
         row = [
             (
-                1.5,
-                "spacer".to_string(),
-                ["".to_string(), "".to_string(), "".to_string()],
+                1.75,
+                SYMBOL_SHIFT.to_string(),
+                [SYMBOL_SHIFT.to_string(), SYMBOL_SHIFT.to_string(), SYMBOL_SHIFT.to_string()],
             ),
             (
                 1.0,
@@ -547,14 +559,9 @@ impl VirtualKeyboard {
                 ["/".to_string(), "?".to_string(), "\\".to_string()],
             ),
             (
-                0.5,
+                3.0,
                 "spacer".to_string(),
                 ["".to_string(), "".to_string(), "".to_string()],
-            ),
-            (
-                2.5,
-                "Shift".to_string(),
-                ["⇧".to_string(), "⇧".to_string(), "⇧".to_string()],
             ),
         ]
         .to_vec();
@@ -635,6 +642,7 @@ impl VirtualKeyboard {
             for row in &keys {
                 keyrow += 1;
                 let mut rowframe = gtk::Box::builder().name("keyrow").build();
+                rowframe.set_width_request(SCREEN_WIDTH-(BORDER_WIDTH*2));
                 let style_context = rowframe.style_context();
                 style_context.add_class("keyboard_button_row");
                 let mut keycol: usize = 0;
@@ -652,17 +660,20 @@ impl VirtualKeyboard {
                             }
                         }
                     }*/
-                    let w: i32 = (width * 47.0) as i32;
+                    let w: i32 = (width * 32.0) as i32;
                     if name == "spacer" {
                         let spacer_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
                         spacer_box.set_width_request(w);
                         rowframe.pack_start(&spacer_box, false, false, 0);
                     } else {
                         let button = Button::builder()
-                            .label(&label)
                             .name(name)
                             .width_request(w)
                             .build();
+                        let button_label = Label::new(Some(&label));
+                        button_label.set_width_request(w);
+                        button.add(&button_label);
+
                         button.connect_clicked(shared_callback.clone());
                         let style_context = button.style_context();
                         style_context.add_class("keyboard_button");
@@ -674,7 +685,7 @@ impl VirtualKeyboard {
                             return Some(true.into());
                         });
 
-                        rowframe.pack_start(&button, false ,true, 0);
+                        rowframe.pack_start(&button, false, true, 0);
                     }
                 }
                 rowframes.push(rowframe);
@@ -695,7 +706,7 @@ impl VirtualKeyboard {
         for keys_layer in keys_layers {
             virtual_keyboard.pack_start(keys_layer, true, true, 0);
         }
-        virtual_keyboard.set_border_width(4);
+        virtual_keyboard.set_border_width(BORDER_WIDTH as u32);
         virtual_keyboard
     }
     fn new(shared_data: Arc<Mutex<SharedData>>, prompt_text: &str) -> VirtualKeyboard {
@@ -771,7 +782,7 @@ fn main() {
     // Load the CSS data
     css_provider
         .load_from_data(
-            ".keyboard_button { font-family: Verdana; border-radius:0; border: 1px solid #999999; font-size: 20px; font-weight: bold; } \
+            ".keyboard_button { margin:0; padding:0; font-family: Verdana; border-radius:0; border: 1px solid #999999; font-size: 26px; font-weight: bold; } \
             .keyboard_button_row { padding:0; margin: 0; border:0; background: #cccccc; } \
             .root { padding:0; margin: 0; border:0; background: #cccccc; } \
             #ok { color: #009900; } \
