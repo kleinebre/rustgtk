@@ -25,6 +25,7 @@ pub const SYMBOL_DELETE: &str = "Del";
 pub const ID_DELETE: &str = "delete";
 pub const SYMBOL_SHIFT: &str = "⇧";
 pub const ID_SHIFT: &str = "shift";
+pub const ID_DISABLED: &str = "disabled";
 //"↵";
 
 #[derive(Debug)]
@@ -341,6 +342,10 @@ impl VirtualKeyboard {
             "".to_string()
         };
 
+        if special_button_name == ID_DISABLED {
+            return;
+        }
+
         if special_button_name == "" {
             virtual_keyboard.append_input(&button_label);
             return;
@@ -611,7 +616,11 @@ impl VirtualKeyboard {
             (
                 3.0,
                 ID_CANCEL.to_string(),
-                [SYMBOL_CANCEL.to_string(), SYMBOL_CANCEL.to_string(), SYMBOL_CANCEL.to_string()],
+                [
+                    SYMBOL_CANCEL.to_string(),
+                    SYMBOL_CANCEL.to_string(),
+                    SYMBOL_CANCEL.to_string(),
+                ],
             ),
             (
                 0.25,
@@ -664,6 +673,7 @@ impl VirtualKeyboard {
     fn _create_widget(
         shared_data: Arc<Mutex<SharedData>>,
         prompt: &Label,
+        accept: &str,
         screen: &Label,
         keys_layers: &mut Vec<gtk::Box>,
     ) -> gtk::Box {
@@ -693,30 +703,40 @@ impl VirtualKeyboard {
                     let mut bgcolor = "#FFFFFF";
                     let mut fgcolor = "#000000";
                     let label = labels[keyset].clone();
-                    /*if self.accept != "" {
-                        if !(self.accept.contains(label)) {
-                            if !(self.is_special_key(label)) {
-                                bgcolor = "#DDDDDD";
-                                fgcolor = "#999999";
-                            }
-                        }
-                    }*/
+
                     let w: i32 = (width * 32.0) as i32;
                     if name == "spacer" {
                         let spacer_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
                         spacer_box.set_width_request(w);
                         rowframe.pack_start(&spacer_box, false, false, 0);
                     } else {
-                        let button = Button::builder().name(name).width_request(w).build();
+                        let button = Button::builder()
+                            .name(name.clone())
+                            .width_request(w)
+                            .build();
+                        let mut disabled = false;
+                        if accept != "" {
+                            if !accept.contains(&label) {
+                                if name == "" {
+                                    disabled = true;
+                                }
+                            }
+                        }
                         let button_label = Label::new(Some(&label));
                         button_label.set_width_request(w);
                         button.add(&button_label);
 
                         button.connect_clicked(shared_callback.clone());
                         let style_context = button.style_context();
-                        style_context.add_class("keyboard_button");
+                        if disabled {
+                            style_context.add_class("keyboard_button_disabled");
+                            button.set_property("name", ID_DISABLED.to_string());
+                        } else {
+                            style_context.add_class("keyboard_button");
+                            button.set_property("name", name);
+                        }
+
                         button.set_hexpand(true);
-                        button.set_property("name", name);
                         //button.halign(gtk::Align::Fill);
                         //button.set_vexpand(true);
                         button.connect("key_press_event", false, |values| {
@@ -747,7 +767,11 @@ impl VirtualKeyboard {
         virtual_keyboard.set_border_width(BORDER_WIDTH as u32);
         virtual_keyboard
     }
-    fn new(shared_data: Arc<Mutex<SharedData>>, prompt_text: &str) -> VirtualKeyboard {
+    fn new(
+        shared_data: Arc<Mutex<SharedData>>,
+        prompt_text: &str,
+        accept: &str,
+    ) -> VirtualKeyboard {
         let prompt = gtk::Label::builder().name("prompt").build();
         let screen = gtk::Label::builder().name("screen").build();
         let mut keys_layers: Vec<gtk::Box> = vec![];
@@ -759,6 +783,7 @@ impl VirtualKeyboard {
         let widget = VirtualKeyboard::_create_widget(
             Arc::clone(&shared_data),
             &prompt,
+            &accept,
             &screen,
             &mut keys_layers,
         );
@@ -792,8 +817,11 @@ fn main() {
     style_context.add_class("root");
     let shared_data = Arc::new(Mutex::new(SharedData::new()));
 
-    let virtual_keyboard =
-        VirtualKeyboard::new(Arc::clone(&shared_data), "Please enter some text.");
+    let virtual_keyboard = VirtualKeyboard::new(
+        Arc::clone(&shared_data),
+        "Please enter some text.",
+        "qwerty",
+    );
     let home_screen = HomeScreen::new(Arc::clone(&shared_data));
     vbox_main.pack_start(&home_screen.widget, true, true, 0);
     vbox_main.pack_start(&virtual_keyboard.widget, true, true, 0);
@@ -821,6 +849,7 @@ fn main() {
     css_provider
         .load_from_data(
             ".keyboard_button { margin:0; padding:0; font-family: Verdana; border-radius:0; border: 1px solid #999999; font-size: 26px; font-weight: bold; } \
+            .keyboard_button_disabled { color: #CCCCCC; margin:0; padding:0; font-family: Verdana; border-radius:0; border: 1px solid #999999; font-size: 26px; font-weight: bold; } \
             .keyboard_button_row { padding:0; margin: 0; border:0; background: #cccccc; } \
             .root { padding:0; margin: 0; border:0; background: #cccccc; } \
             #ok { color: #009900; } \
