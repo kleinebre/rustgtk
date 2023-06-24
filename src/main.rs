@@ -15,7 +15,7 @@ pub const SYMBOL_LEFT: &str = "◁";
 pub const SYMBOL_RIGHT: &str = "▷";
 pub const SYMBOL_INS: &str = "Ins";
 pub const SYMBOL_DEL: &str = "Del";
-pub const SYMBOL_SHIFT: &str = "⌫";
+pub const SYMBOL_SHIFT: &str = "⇧";
 //"↵";
 
 #[derive(Debug)]
@@ -124,7 +124,10 @@ struct VirtualKeyboard {
     input: Mutex<String>,
     accept: Mutex<String>,
     close_action: Mutex<DialogCloseAction>,
+    prompt: Label,
     screen: Label,
+    active_key_layer: Mutex<usize>,
+    keys_layers: Vec<gtk::Box>,
     cursor_state: Mutex<bool>,
 }
 // key width, special key name, labels
@@ -263,15 +266,36 @@ impl VirtualKeyboard {
         self.update_label(None);
     }
 
+    fn show_active_key_layer(&self) {
+        let mut idx: usize = 0;
+        for layer in &self.keys_layers {
+            if idx == *self.active_key_layer.lock().expect("poison") {
+                self.keys_layers[idx].show_all();
+            } else {
+                self.keys_layers[idx].hide();
+            }
+            idx += 1;
+        }
+    }
+
     fn show(&self, close_action: DialogCloseAction) {
         *self.close_action.lock().expect("poison") = close_action;
-        self.widget.show_all();
+        *self.active_key_layer.lock().expect("poison") = 0;
+        self.widget.show();
+        self.prompt.show();
+        self.screen.show();
+        self.show_active_key_layer();
     }
 
     fn hide(&self) {
         self.widget.hide();
     }
-    fn next_keyset(&self) {}
+    fn next_keyset(&self) {
+        let active_layer: usize = *self.active_key_layer.lock().expect("poison");
+        let new_layer = (active_layer + 1) % (self.keys_layers.len());
+        *self.active_key_layer.lock().expect("poison") = new_layer;
+        self.show_active_key_layer();
+    }
 
     fn button_callback(button: &gtk::Button, shared_data: &Arc<Mutex<SharedData>>) {
         // handles keyboard button mouse clicks, mostly.
@@ -291,8 +315,6 @@ impl VirtualKeyboard {
         }
         if button_label == SYMBOL_SHIFT {
             virtual_keyboard.next_keyset();
-            let action = virtual_keyboard.close_action.lock().expect("poison");
-            action(&shared, DialogResult::Ok);
             return;
         }
         if button_label == SYMBOL_CANCEL {
@@ -595,6 +617,7 @@ impl VirtualKeyboard {
         shared_data: Arc<Mutex<SharedData>>,
         prompt: &Label,
         screen: &Label,
+        keys_layers: &mut Vec<gtk::Box>,
     ) -> gtk::Box {
         // define the button event handler
         let shared_callback = move |button: &gtk::Button| {
@@ -607,7 +630,8 @@ impl VirtualKeyboard {
 
         let mut rowframes: Vec<gtk::Box> = vec![];
 
-        for keyset in 0..1 {
+        for keyset in 0..3 {
+            let keys_layer = gtk::Box::new(gtk::Orientation::Vertical, 3);
             for row in &keys {
                 keyrow += 1;
                 let mut rowframe = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -650,13 +674,21 @@ impl VirtualKeyboard {
                 }
                 rowframes.push(rowframe);
             }
+            for bar in &rowframes {
+                keys_layer.pack_start(bar, true, true, 0);
+            }
+            keys_layer.set_height_request(SCREEN_HEIGHT * 3 / 4);
+            keys_layer.hide();
+            keys_layers.push(keys_layer);
         }
         let virtual_keyboard = gtk::Box::new(gtk::Orientation::Vertical, 5);
+        prompt.set_height_request(SCREEN_HEIGHT * 5 / 40);
+        screen.set_height_request(SCREEN_HEIGHT * 5 / 40);
+
         virtual_keyboard.pack_start(prompt, true, true, 0);
         virtual_keyboard.pack_start(screen, true, true, 0);
-
-        for bar in rowframes {
-            virtual_keyboard.pack_start(&bar, true, true, 0);
+        for keys_layer in keys_layers {
+            virtual_keyboard.pack_start(keys_layer, true, true, 0);
         }
         virtual_keyboard.set_border_width(4);
         virtual_keyboard
@@ -664,17 +696,27 @@ impl VirtualKeyboard {
     fn new(shared_data: Arc<Mutex<SharedData>>, prompt_text: &str) -> VirtualKeyboard {
         let prompt = gtk::Label::builder().name("prompt").build();
         let screen = gtk::Label::builder().name("screen").build();
+        let mut keys_layers: Vec<gtk::Box> = vec![];
+
         prompt.set_text(prompt_text);
         // only a very limited set of tags is supported by this
         //screen.set_markup("please type <b>SOMETHING</b>");
 
-        let widget = VirtualKeyboard::_create_widget(Arc::clone(&shared_data), &prompt, &screen);
+        let widget = VirtualKeyboard::_create_widget(
+            Arc::clone(&shared_data),
+            &prompt,
+            &screen,
+            &mut keys_layers,
+        );
         let instance = VirtualKeyboard {
             widget,
             input: Mutex::new("".to_string()),
             accept: Mutex::new("".to_string()),
             close_action: Mutex::new(|_, _| {}),
             screen,
+            prompt,
+            active_key_layer: 0.into(),
+            keys_layers,
             cursor_state: Mutex::new(false),
         };
         let shared_data_for_cursor = Arc::clone(&shared_data);
