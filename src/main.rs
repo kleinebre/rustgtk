@@ -634,7 +634,9 @@ impl VirtualKeyboard {
             let keys_layer = gtk::Box::new(gtk::Orientation::Vertical, 3);
             for row in &keys {
                 keyrow += 1;
-                let mut rowframe = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+                let mut rowframe = gtk::Box::builder().name("keyrow").build();
+                let style_context = rowframe.style_context();
+                style_context.add_class("keyboard_button_row");
                 let mut keycol: usize = 0;
                 for key in row {
                     keycol += 1;
@@ -662,14 +664,17 @@ impl VirtualKeyboard {
                             .width_request(w)
                             .build();
                         button.connect_clicked(shared_callback.clone());
+                        let style_context = button.style_context();
+                        style_context.add_class("keyboard_button");
                         button.set_hexpand(true);
+                        //button.halign(gtk::Align::Fill);
                         //button.set_vexpand(true);
                         button.connect("key_press_event", false, |values| {
                             println!("Button a!");
                             return Some(true.into());
                         });
 
-                        rowframe.pack_start(&button, false, false, 0);
+                        rowframe.pack_start(&button, false ,true, 0);
                     }
                 }
                 rowframes.push(rowframe);
@@ -734,6 +739,8 @@ impl VirtualKeyboard {
 fn main() {
     gtk::init().expect("Failed to initialize GTK.");
     let vbox_main = gtk::Box::new(gtk::Orientation::Vertical, 5);
+    let style_context = vbox_main.style_context();
+    style_context.add_class("root");
     let shared_data = Arc::new(Mutex::new(SharedData::new()));
 
     let virtual_keyboard =
@@ -764,7 +771,9 @@ fn main() {
     // Load the CSS data
     css_provider
         .load_from_data(
-            "button { font-family: Verdana; font-size: 20px; font-weight: bold; } \
+            ".keyboard_button { font-family: Verdana; border-radius:0; border: 1px solid #999999; font-size: 20px; font-weight: bold; } \
+            .keyboard_button_row { padding:0; margin: 0; border:0; background: #cccccc; } \
+            .root { padding:0; margin: 0; border:0; background: #cccccc; } \
             #ok { color: #009900; } \
             #cancel { color: #ff0000; } \
             #delete { font-family: Verdana; font-size: 12px; font-weight: normal; color: #000000; } \
