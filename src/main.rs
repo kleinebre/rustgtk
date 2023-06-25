@@ -98,7 +98,6 @@ impl HomeScreen {
                     let virtual_keyboard = binding.virtual_keyboard.as_ref().expect("not set");
                     virtual_keyboard.reset_input();
                     virtual_keyboard.show(move |shared, returnbutton| {
-                        println!("must now close kb dialog");
                         Self::process_keyboard_reply(shared, returnbutton);
                     });
                 }
@@ -404,7 +403,6 @@ impl VirtualKeyboard {
                 return label.text().to_string();
             }
         }
-        print!("No label found");
         return "".to_string();
     }
 
@@ -463,10 +461,8 @@ impl VirtualKeyboard {
             if let Some(child) = button.child() {
                 let style_context = child.style_context();
                 if insmode {
-                    println!("insert mode ENABLED");
                     style_context.add_class("insert_active");
                 } else {
-                    println!("insert mode DISABLED");
                     style_context.remove_class("insert_active");
                 }
                 virtual_keyboard.update_label(None);
@@ -745,7 +741,7 @@ impl VirtualKeyboard {
             ),
             (
                 8.0,
-                "spacebar".to_string(),
+                "".to_string(),
                 [" ".to_string(), " ".to_string(), " ".to_string()],
             ),
             (
