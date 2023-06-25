@@ -145,11 +145,27 @@ struct VirtualKeyboard {
 // key width, special key name, labels
 type KeyDef = (f32, String, [String; 3]);
 impl VirtualKeyboard {
-    fn pre_cursor(&self, input: &str, cursor_pos: usize) -> Option<String> {
+    fn charlen(input: &str) -> usize {
+        let mut result_len = 0;
+        for (l, c) in input.chars().enumerate() {
+            result_len = l + 1;
+        }
+        return result_len;
+    }
+
+    fn pre_cursor(input: &str, cursor_pos: usize) -> Option<String> {
         // given a string and a cursor position,
         // returns the portion of the string before the cursor
-        let result = if input.len() > cursor_pos {
-            Some(input[..cursor_pos].to_string())
+        let result = if Self::charlen(input) > cursor_pos {
+            let mut tempstring = "".to_string();
+            for (l, c) in input.chars().enumerate() {
+                if l == cursor_pos {
+                    return Some(tempstring);
+                }
+                tempstring.push(c);
+            }
+            return Some("".to_string());
+            //Some(input[..cursor_pos].to_string())
         } else {
             if input.to_string() == "" {
                 None
@@ -159,21 +175,28 @@ impl VirtualKeyboard {
         };
         result
     }
-    fn on_cursor(&self, input: &str, cursor_pos: usize) -> Option<String> {
+    fn on_cursor(input: &str, cursor_pos: usize) -> Option<String> {
         // given a string and a cursor position,
         // returns the portion of the string on the cursor
-        let result = if cursor_pos < input.len() {
-            Some(input[cursor_pos..cursor_pos + 1].to_string())
+        let mut temp_string = "".to_string();
+        let result = if cursor_pos < Self::charlen(input) {
+            temp_string.push(input.chars().nth(cursor_pos)?);
+            return Some(temp_string);
         } else {
             None
         };
         result
     }
-    fn post_cursor(&self, input: &str, cursor_pos: usize) -> Option<String> {
+    fn post_cursor(input: &str, cursor_pos: usize) -> Option<String> {
         // given a string and a cursor position,
         // returns the portion of the string after the cursor
-        if input.len() > cursor_pos + 1 {
-            Some(input[cursor_pos + 1..].to_string())
+        let l = Self::charlen(input);
+        if l > cursor_pos + 1 {
+            let mut tempstring = "".to_string();
+            for i in (cursor_pos + 1)..l {
+                tempstring.push(input.chars().nth(i)?);
+            }
+            return Some(tempstring);
         } else {
             None
         }
@@ -200,20 +223,20 @@ impl VirtualKeyboard {
             let cursor_decoration_post: &str = if insertmode { "</span>" } else { "</u>" };
             format!(
                 "{}{}{}{}{}",
-                self.pre_cursor(input, cursor_pos)
+                Self::pre_cursor(input, cursor_pos)
                     .unwrap_or("".to_string())
                     .replace("<", "&lt;"),
                 cursor_decoration_pre,
-                self.on_cursor(input, cursor_pos)
+                Self::on_cursor(input, cursor_pos)
                     .unwrap_or(" ".to_string())
                     .replace("<", "&lt;"),
                 cursor_decoration_post,
-                self.post_cursor(input, cursor_pos)
+                Self::post_cursor(input, cursor_pos)
                     .unwrap_or("".to_string())
                     .replace("<", "&lt;"),
             )
         } else {
-            let filler = if self.on_cursor(input, cursor_pos).is_none() {
+            let filler = if Self::on_cursor(input, cursor_pos).is_none() {
                 " "
             } else {
                 ""
@@ -276,7 +299,7 @@ impl VirtualKeyboard {
 
     fn backspace(&self) {
         // This code is pretty ugly and inefficient (not that that matters for
-        // strings of reasonable finite length)
+        // single-line strings of reasonable finite length)
         // but it does the trick of doing a backspace correctly, even for unicode strings.
         {
             let mut input_field = self.input.lock().expect("poison");
@@ -852,7 +875,7 @@ fn main() {
     let virtual_keyboard = VirtualKeyboard::new(
         Arc::clone(&shared_data),
         "Please enter some text.",
-        "qwerty",
+        "", // empty=allow all chars (otherwise only allow listed chars)
     );
     let home_screen = HomeScreen::new(Arc::clone(&shared_data));
     vbox_main.pack_start(&home_screen.widget, true, true, 0);
@@ -916,4 +939,58 @@ fn main() {
     window1.show();
 
     gtk::main();
+}
+
+#[test]
+fn test_charlen() {
+    assert_eq!(VirtualKeyboard::charlen("abc"), 3);
+    assert_eq!(VirtualKeyboard::charlen("ab€"), 3);
+}
+
+#[test]
+fn test_pre_cursor() {
+    assert_eq!(
+        VirtualKeyboard::pre_cursor("abcde", 0).unwrap_or("".to_string()),
+        ""
+    );
+    assert_eq!(
+        VirtualKeyboard::pre_cursor("abcde", 1).unwrap_or("".to_string()),
+        "a"
+    );
+    assert_eq!(
+        VirtualKeyboard::pre_cursor("€bcde", 1).unwrap_or("".to_string()),
+        "€"
+    );
+    assert_eq!(
+        VirtualKeyboard::pre_cursor("€bcde", 2).unwrap_or("".to_string()),
+        "€b"
+    );
+    assert_eq!(
+        VirtualKeyboard::pre_cursor("€bcde", 5).unwrap_or("".to_string()),
+        "€bcde"
+    );
+    assert_eq!(
+        VirtualKeyboard::pre_cursor("€bcde", 6).unwrap_or("".to_string()),
+        "€bcde"
+    );
+}
+
+#[test]
+fn test_on_cursor() {
+    assert_eq!(VirtualKeyboard::on_cursor("a€c€e", 0).unwrap(), "a");
+    assert_eq!(VirtualKeyboard::on_cursor("a€c€e", 1).unwrap(), "€");
+    assert_eq!(VirtualKeyboard::on_cursor("a€c€e", 2).unwrap(), "c");
+    assert_eq!(VirtualKeyboard::on_cursor("a€c€e", 3).unwrap(), "€");
+    assert_eq!(VirtualKeyboard::on_cursor("a€c€e", 4).unwrap(), "e");
+    assert!(VirtualKeyboard::on_cursor("a€c€e", 5).is_none());
+}
+
+#[test]
+fn test_post_cursor() {
+    assert_eq!(VirtualKeyboard::post_cursor("a€c€e", 0).unwrap(), "€c€e");
+    assert_eq!(VirtualKeyboard::post_cursor("a€c€e", 1).unwrap(), "c€e");
+    assert_eq!(VirtualKeyboard::post_cursor("a€c€e", 2).unwrap(), "€e");
+    assert_eq!(VirtualKeyboard::post_cursor("a€c€e", 3).unwrap(), "e");
+    assert!(VirtualKeyboard::post_cursor("a€c€e", 4).is_none());
+    assert!(VirtualKeyboard::post_cursor("a€c€e", 5).is_none());
 }
