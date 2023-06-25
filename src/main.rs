@@ -248,6 +248,32 @@ impl VirtualKeyboard {
         self.update_label(None);
     }
 
+    fn move_cursor_left(&self) {
+        {
+            let mut cursorpos = self.cursor_pos.lock().expect("poison");
+            if *cursorpos > 0 {
+                *cursorpos -= 1;
+            }
+        }
+        self.update_label(None); // to keep curor visible while moving it
+    }
+
+    fn move_cursor_right(&self) {
+        {
+            let mut input_field = self.input.lock().expect("poison");
+            let mut stringlen: usize = 0;
+            for (l, c) in input_field.chars().enumerate() {
+                stringlen = l;
+            }
+
+            let mut cursorpos = self.cursor_pos.lock().expect("poison");
+            if *cursorpos <= stringlen {
+                *cursorpos += 1;
+            }
+        }
+        self.update_label(None); // to keep curor visible while moving it
+    }
+
     fn backspace(&self) {
         // This code is pretty ugly and inefficient (not that that matters for
         // strings of reasonable finite length)
@@ -267,12 +293,7 @@ impl VirtualKeyboard {
             }
             *input_field = x;
         }
-        {
-            let mut cursorpos = self.cursor_pos.lock().expect("poison");
-            if *cursorpos > 0 {
-                *cursorpos -= 1;
-            }
-        }
+        self.move_cursor_left();
         self.update_label(None);
     }
 
@@ -368,9 +389,11 @@ impl VirtualKeyboard {
             return;
         }
         if special_button_name == ID_LEFT {
+            virtual_keyboard.move_cursor_left();
             return;
         }
         if special_button_name == ID_RIGHT {
+            virtual_keyboard.move_cursor_right();
             return;
         }
         if special_button_name == ID_INSERT {
