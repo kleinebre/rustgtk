@@ -140,6 +140,7 @@ struct VirtualKeyboard {
     active_key_layer: Mutex<usize>,
     keys_layers: Vec<gtk::Box>,
     cursor_state: Mutex<bool>,
+    insert_mode: Mutex<bool>,
     cursor_pos: Mutex<usize>,
 }
 // key width, special key name, labels
@@ -213,7 +214,7 @@ impl VirtualKeyboard {
            }
         */
         let csh = if cursorshape == "_" {
-            let insertmode: bool = false;
+            let insertmode: bool = { *self.insert_mode.lock().expect("poison") };
             // markup is not html but "Pango"
             let cursor_decoration_pre: &str = if insertmode {
                 "<span foreground=\"white\" background=\"black\">"
@@ -420,6 +421,23 @@ impl VirtualKeyboard {
             return;
         }
         if special_button_name == ID_INSERT {
+            let insmode: bool = {
+                let mut insmode = virtual_keyboard.insert_mode.lock().expect("poison");
+                *insmode = !*insmode;
+                *insmode
+            };
+            if let Some(child) = button.child() {
+                let style_context = child.style_context();
+                if insmode {
+                    println!("insert mode ENABLED");
+                    style_context.add_class("insert_active");
+                } else {
+                    println!("insert mode DISABLED");
+                    style_context.remove_class("insert_active");
+                }
+                virtual_keyboard.update_label(None);
+            }
+
             return;
         }
         if special_button_name == ID_DELETE {
@@ -851,6 +869,7 @@ impl VirtualKeyboard {
             active_key_layer: 0.into(),
             keys_layers,
             cursor_state: Mutex::new(false),
+            insert_mode: Mutex::new(false),
             cursor_pos: Mutex::new(0),
         };
         let shared_data_for_cursor = Arc::clone(&shared_data);
@@ -910,7 +929,9 @@ fn main() {
             #ok { color: #009900; } \
             #cancel { color: #ff0000; } \
             #delete { font-family: Verdana; font-size: 12px; font-weight: normal; color: #000000; } \
-            #insert { font-family: Verdana; font-size: 12px; font-weight: normal; color: #000000; } \
+            #insert { font-family: Verdana; font-size: 12px; font-weight: normal; } \
+            .insert_active { color: #ff0000; } \
+            .insert_inactive { color: #000000; } \
             #screen { font-family: 'Courier'; background: #eeeeee; font-size: 30px; font-weight: bold; } \
             #prompt { font-family: 'Verdana'; font-size: 30px; font-weight: bold; background: #cccccc; color: #000000;} \
             "
