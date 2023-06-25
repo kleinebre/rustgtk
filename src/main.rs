@@ -261,13 +261,46 @@ impl VirtualKeyboard {
 
     fn append_input(&self, input: &str) {
         {
+            let cursor_pos: usize = *self.cursor_pos.lock().expect("poison");
             let mut input_field = self.input.lock().expect("poison");
-            let new_input = format!("{}{}", input_field, input);
+            let insertmode: bool = { *self.insert_mode.lock().expect("poison") };
+            let pre = Self::pre_cursor(&input_field, cursor_pos)
+                .unwrap_or("".to_string())
+                .replace("<", "&lt;");
+            let onc = Self::on_cursor(&input_field, cursor_pos)
+                .unwrap_or(" ".to_string())
+                .replace("<", "&lt;");
+            let post = Self::post_cursor(&input_field, cursor_pos)
+                .unwrap_or("".to_string())
+                .replace("<", "&lt;");
+
+            let new_input = if insertmode {
+                format!("{}{}{}{}", pre, input, onc, post)
+            } else {
+                format!("{}{}{}", pre, input, post)
+            };
             *input_field = new_input;
         }
         {
             let mut cursorpos = self.cursor_pos.lock().expect("poison");
             *cursorpos += 1;
+        }
+        self.update_label(None);
+    }
+
+    fn del_input(&self) {
+        {
+            let cursor_pos: usize = *self.cursor_pos.lock().expect("poison");
+            let mut input_field = self.input.lock().expect("poison");
+            let pre = Self::pre_cursor(&input_field, cursor_pos)
+                .unwrap_or("".to_string())
+                .replace("<", "&lt;");
+            let post = Self::post_cursor(&input_field, cursor_pos)
+                .unwrap_or("".to_string())
+                .replace("<", "&lt;");
+
+            let new_input = { format!("{}{}", pre, post) };
+            *input_field = new_input;
         }
         self.update_label(None);
     }
@@ -304,18 +337,19 @@ impl VirtualKeyboard {
         // but it does the trick of doing a backspace correctly, even for unicode strings.
         {
             let mut input_field = self.input.lock().expect("poison");
-            let mut stringlen: usize = 0;
-            for (l, c) in input_field.chars().enumerate() {
-                stringlen = l;
+            let cursor_pos: usize = *self.cursor_pos.lock().expect("poison");
+            if cursor_pos == 0 {
+                return;
             }
-            let mut x = "".to_string();
-            for (charnum, c) in input_field.chars().enumerate() {
-                if charnum == stringlen {
-                    break;
-                }
-                x.push(c);
-            }
-            *input_field = x;
+            let pre = Self::pre_cursor(&input_field, cursor_pos - 1)
+                .unwrap_or("".to_string())
+                .replace("<", "&lt;");
+            let post = Self::post_cursor(&input_field, cursor_pos - 1)
+                .unwrap_or("".to_string())
+                .replace("<", "&lt;");
+
+            let new_input = format!("{}{}", pre, post);
+            *input_field = new_input;
         }
         self.move_cursor_left();
         self.update_label(None);
@@ -441,6 +475,7 @@ impl VirtualKeyboard {
             return;
         }
         if special_button_name == ID_DELETE {
+            virtual_keyboard.del_input();
             return;
         }
         if special_button_name == ID_ENTER {
@@ -846,6 +881,10 @@ impl VirtualKeyboard {
     ) -> VirtualKeyboard {
         let prompt = gtk::Label::builder().name("prompt").build();
         let screen = gtk::Label::builder().name("screen").build();
+        // Note: If choosing a different font for the screen, be sure
+        // it doesn't do ligatures, so that it won't merge letterings for e.g. ff, fi
+        // into a single glyph.
+
         let mut keys_layers: Vec<gtk::Box> = vec![];
 
         prompt.set_text(prompt_text);
@@ -932,7 +971,7 @@ fn main() {
             #insert { font-family: Verdana; font-size: 12px; font-weight: normal; } \
             .insert_active { color: #ff0000; } \
             .insert_inactive { color: #000000; } \
-            #screen { font-family: 'Courier'; background: #eeeeee; font-size: 30px; font-weight: bold; } \
+            #screen { font-family: 'Monospace';background: #eeeeee; font-size: 30px; font-weight: bold; } \
             #prompt { font-family: 'Verdana'; font-size: 30px; font-weight: bold; background: #cccccc; color: #000000;} \
             "
             .as_bytes(),
