@@ -140,15 +140,16 @@ struct VirtualKeyboard {
     active_key_layer: Mutex<usize>,
     keys_layers: Vec<gtk::Box>,
     cursor_state: Mutex<bool>,
+    cursor_pos: Mutex<usize>,
 }
 // key width, special key name, labels
 type KeyDef = (f32, String, [String; 3]);
 impl VirtualKeyboard {
-    fn pre_cursor(&self, input: &str, cursorpos: usize) -> Option<String> {
+    fn pre_cursor(&self, input: &str, cursor_pos: usize) -> Option<String> {
         // given a string and a cursor position,
         // returns the portion of the string before the cursor
-        let result = if input.len() > cursorpos {
-            Some(input[..cursorpos].to_string())
+        let result = if input.len() > cursor_pos {
+            Some(input[..cursor_pos].to_string())
         } else {
             if input.to_string() == "" {
                 None
@@ -158,21 +159,21 @@ impl VirtualKeyboard {
         };
         result
     }
-    fn on_cursor(&self, input: &str, cursorpos: usize) -> Option<String> {
+    fn on_cursor(&self, input: &str, cursor_pos: usize) -> Option<String> {
         // given a string and a cursor position,
         // returns the portion of the string on the cursor
-        let result = if cursorpos < input.len() {
-            Some(input[cursorpos..cursorpos + 1].to_string())
+        let result = if cursor_pos < input.len() {
+            Some(input[cursor_pos..cursor_pos + 1].to_string())
         } else {
             None
         };
         result
     }
-    fn post_cursor(&self, input: &str, cursorpos: usize) -> Option<String> {
+    fn post_cursor(&self, input: &str, cursor_pos: usize) -> Option<String> {
         // given a string and a cursor position,
         // returns the portion of the string after the cursor
-        if input.len() > cursorpos + 1 {
-            Some(input[cursorpos + 1..].to_string())
+        if input.len() > cursor_pos + 1 {
+            Some(input[cursor_pos + 1..].to_string())
         } else {
             None
         }
@@ -181,11 +182,11 @@ impl VirtualKeyboard {
         let mut cs = self.cursor_state.lock().expect("poison");
         let cursorshape = if let Some(c) = cursor { c } else { "_" };
         let input: &str = &self.input.lock().expect("poison");
-        let mut cursorpos = input.len(); // but can be anything from 0..input.len() for edits
-
+        //let mut cursor_pos = input.len(); // but can be anything from 0..input.len() for edits
+        let cursor_pos: usize = *self.cursor_pos.lock().expect("poison");
         /* This IF shows that we can have a cursor underneath existing text
-           if cursorpos >= 3 {
-               cursorpos = 3;
+           if cursor_pos >= 3 {
+               cursor_pos = 3;
            }
         */
         let csh = if cursorshape == "_" {
@@ -199,20 +200,20 @@ impl VirtualKeyboard {
             let cursor_decoration_post: &str = if insertmode { "</span>" } else { "</u>" };
             format!(
                 "{}{}{}{}{}",
-                self.pre_cursor(input, cursorpos)
+                self.pre_cursor(input, cursor_pos)
                     .unwrap_or("".to_string())
                     .replace("<", "&lt;"),
                 cursor_decoration_pre,
-                self.on_cursor(input, cursorpos)
+                self.on_cursor(input, cursor_pos)
                     .unwrap_or(" ".to_string())
                     .replace("<", "&lt;"),
                 cursor_decoration_post,
-                self.post_cursor(input, cursorpos)
+                self.post_cursor(input, cursor_pos)
                     .unwrap_or("".to_string())
                     .replace("<", "&lt;"),
             )
         } else {
-            let filler = if self.on_cursor(input, cursorpos).is_none() {
+            let filler = if self.on_cursor(input, cursor_pos).is_none() {
                 " "
             } else {
                 ""
@@ -240,6 +241,10 @@ impl VirtualKeyboard {
             let new_input = format!("{}{}", input_field, input);
             *input_field = new_input;
         }
+        {
+            let mut cursorpos = self.cursor_pos.lock().expect("poison");
+            *cursorpos += 1;
+        }
         self.update_label(None);
     }
 
@@ -261,9 +266,12 @@ impl VirtualKeyboard {
                 x.push(c);
             }
             *input_field = x;
-            //if input_field.len() > 0 {
-            //*input_field.pop(); // = input_field[0..input_field.len() - 1].to_string();
-            //}
+        }
+        {
+            let mut cursorpos = self.cursor_pos.lock().expect("poison");
+            if *cursorpos > 0 {
+                *cursorpos -= 1;
+            }
         }
         self.update_label(None);
     }
@@ -797,6 +805,7 @@ impl VirtualKeyboard {
             active_key_layer: 0.into(),
             keys_layers,
             cursor_state: Mutex::new(false),
+            cursor_pos: Mutex::new(0),
         };
         let shared_data_for_cursor = Arc::clone(&shared_data);
         // cursor blink timer thread
