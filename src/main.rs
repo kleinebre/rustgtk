@@ -139,6 +139,7 @@ struct VirtualKeyboard {
     cursor_state: Mutex<bool>,
     insert_mode: Mutex<bool>,
     cursor_pos: Mutex<usize>,
+    accept: String,
 }
 // key width, special key name, labels
 type KeyDef = (f32, String, [String; 3]);
@@ -398,6 +399,59 @@ impl VirtualKeyboard {
         return "".to_string();
     }
 
+    fn handle_key(
+        &self,
+        shared: &std::sync::MutexGuard<SharedData>,
+        button_label: &str,
+        special_button_name: &str,
+    ) {
+        if special_button_name == ID_DISABLED {
+            return;
+        }
+        if special_button_name == ID_BACKSPACE {
+            self.backspace();
+            return;
+        }
+
+        if special_button_name == "" {
+            self.append_input(button_label);
+            return;
+        }
+        if special_button_name == ID_SHIFT {
+            self.next_keyset();
+            return;
+        }
+        if special_button_name == ID_LEFT {
+            self.move_cursor_left();
+            return;
+        }
+        if special_button_name == ID_RIGHT {
+            self.move_cursor_right();
+            return;
+        }
+        if special_button_name == ID_INSERT {
+            let mut insmode = self.insert_mode.lock().expect("poison");
+            *insmode = !*insmode;
+            return;
+        }
+        if special_button_name == ID_DELETE {
+            self.del_input();
+            return;
+        }
+        if special_button_name == ID_ENTER {
+            self.hide();
+            let action = self.close_action.lock().expect("poison");
+            action(shared, DialogResult::Ok);
+            return;
+        }
+        if special_button_name == ID_CANCEL {
+            self.hide();
+            let action = self.close_action.lock().expect("poison");
+            action(shared, DialogResult::Cancel);
+            return;
+        }
+    }
+
     fn button_callback(button: &gtk::Button, shared_data: &Arc<Mutex<SharedData>>) {
         // handles keyboard button mouse clicks, mostly.
         // Our button contains a label which contains the text (so that button width
@@ -418,66 +472,7 @@ impl VirtualKeyboard {
         } else {
             "".to_string()
         };
-
-        if special_button_name == ID_DISABLED {
-            return;
-        }
-
-        if special_button_name == "" {
-            virtual_keyboard.append_input(&button_label);
-            return;
-        }
-
-        if special_button_name == ID_BACKSPACE {
-            virtual_keyboard.backspace();
-            return;
-        }
-        if special_button_name == ID_SHIFT {
-            virtual_keyboard.next_keyset();
-            return;
-        }
-        if special_button_name == ID_LEFT {
-            virtual_keyboard.move_cursor_left();
-            return;
-        }
-        if special_button_name == ID_RIGHT {
-            virtual_keyboard.move_cursor_right();
-            return;
-        }
-        if special_button_name == ID_INSERT {
-            let insmode: bool = {
-                let mut insmode = virtual_keyboard.insert_mode.lock().expect("poison");
-                *insmode = !*insmode;
-                *insmode
-            };
-            if let Some(child) = button.child() {
-                let style_context = child.style_context();
-                if insmode {
-                    style_context.add_class("insert_active");
-                } else {
-                    style_context.remove_class("insert_active");
-                }
-                virtual_keyboard.update_label(None);
-            }
-
-            return;
-        }
-        if special_button_name == ID_DELETE {
-            virtual_keyboard.del_input();
-            return;
-        }
-        if special_button_name == ID_ENTER {
-            virtual_keyboard.hide();
-            let action = virtual_keyboard.close_action.lock().expect("poison");
-            action(&shared, DialogResult::Ok);
-            return;
-        }
-        if special_button_name == ID_CANCEL {
-            virtual_keyboard.hide();
-            let action = virtual_keyboard.close_action.lock().expect("poison");
-            action(&shared, DialogResult::Cancel);
-            return;
-        }
+        virtual_keyboard.handle_key(&shared, &button_label, &special_button_name);
     }
 
     fn define_keysets() -> Vec<Vec<KeyDef>> {
@@ -882,6 +877,7 @@ impl VirtualKeyboard {
             prompt,
             active_key_layer: 0.into(),
             keys_layers,
+            accept: accept.to_string(),
             cursor_state: Mutex::new(false),
             insert_mode: Mutex::new(false),
             cursor_pos: Mutex::new(0),
@@ -962,6 +958,62 @@ fn main() {
 
     // define the window
     let window = Window::new(WindowType::Toplevel);
+    let shareddata_for_keypress = Arc::clone(&shared_data);
+
+    window.connect_local("key_press_event", false, move |values| {
+        let sd = shareddata_for_keypress.lock().expect("poison");
+        let vk = sd.virtual_keyboard.as_ref();
+        if let Some(keyboard) = vk {
+            println!("keypress");
+            let raw_event = &values[1].get::<gdk::Event>().unwrap();
+            // You have to cast to the correct event type to access some of the fields
+            match raw_event.downcast_ref::<gdk::EventKey>() {
+                Some(event) => {
+                    let keyval: u32 = *event.keyval();
+                    // let state: gdk::ModifierType = event.state();
+                    let (plain_key, special_key) = if keyval <= 255 {
+                        let character = char::from(keyval as u8);
+                        let key = character.to_string();
+                        if keyboard.accept != "" {
+                            if !keyboard.accept.contains(&key) {
+                                ("".to_string(), "".to_string())
+                            } else {
+                                (key, "".to_string())
+                            }
+                        } else {
+                            (key, "".to_string())
+                        }
+                    } else {
+                        if keyval == *gdk::keys::constants::BackSpace {
+                            ("".to_string(), ID_BACKSPACE.to_string())
+                        } else if keyval == *gdk::keys::constants::Delete {
+                            ("".to_string(), ID_DELETE.to_string())
+                        } else if keyval == *gdk::keys::constants::Insert {
+                            ("".to_string(), ID_INSERT.to_string())
+                        } else if keyval == *gdk::keys::constants::Left {
+                            ("".to_string(), ID_LEFT.to_string())
+                        } else if keyval == *gdk::keys::constants::Right {
+                            ("".to_string(), ID_RIGHT.to_string())
+                        } else if keyval == *gdk::keys::constants::Return {
+                            ("".to_string(), ID_ENTER.to_string())
+                        } else if keyval == *gdk::keys::constants::Escape {
+                            ("".to_string(), ID_CANCEL.to_string())
+                        } else {
+                            ("".to_string(), "".to_string())
+                        }
+                    };
+                    if format!("{}{}", plain_key, special_key) != "" {
+                        keyboard.handle_key(&sd, &plain_key, &special_key);
+                    }
+                    //println!("key value: {:?}", keyval);
+                    //println!("modifiers: {:?}", state);
+                }
+                None => {}
+            }
+        };
+        Some(true.into())
+    });
+
     window.set_title("Hello, World!");
     window.set_default_size(SCREEN_WIDTH, SCREEN_HEIGHT);
     window.connect_delete_event(|_, _| {
