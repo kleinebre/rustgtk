@@ -1,6 +1,5 @@
 extern crate gtk;
 use glib;
-use gtk::builders::LabelBuilder;
 use gtk::prelude::*;
 use gtk::{Button, CssProvider, Label, Window, WindowType};
 use std::sync::Arc;
@@ -132,7 +131,6 @@ impl HomeScreen {
 struct VirtualKeyboard {
     widget: gtk::Box,
     input: Mutex<String>,
-    accept: Mutex<String>,
     close_action: Mutex<DialogCloseAction>,
     prompt: Label,
     screen: Label,
@@ -147,7 +145,7 @@ type KeyDef = (f32, String, [String; 3]);
 impl VirtualKeyboard {
     fn charlen(input: &str) -> usize {
         let mut result_len = 0;
-        for (l, c) in input.chars().enumerate() {
+        for (l, _c) in input.chars().enumerate() {
             result_len = l + 1;
         }
         return result_len;
@@ -202,7 +200,6 @@ impl VirtualKeyboard {
         }
     }
     fn update_label(&self, cursor: Option<&str>) {
-        let mut cs = self.cursor_state.lock().expect("poison");
         let cursorshape = if let Some(c) = cursor { c } else { "_" };
         let input: &str = &self.input.lock().expect("poison");
         //let mut cursor_pos = input.len(); // but can be anything from 0..input.len() for edits
@@ -250,7 +247,7 @@ impl VirtualKeyboard {
         let sd = shared_data.lock().expect("poison");
         let virtual_keyboard = sd.virtual_keyboard.as_ref();
         if let Some(vk) = virtual_keyboard {
-            let mut cs = *vk.cursor_state.lock().expect("poison");
+            let cs = *vk.cursor_state.lock().expect("poison");
             {
                 *vk.cursor_state.lock().expect("poison") = !cs;
             }
@@ -316,14 +313,9 @@ impl VirtualKeyboard {
 
     fn move_cursor_right(&self) {
         {
-            let mut input_field = self.input.lock().expect("poison");
-            let mut stringlen: usize = 0;
-            for (l, c) in input_field.chars().enumerate() {
-                stringlen = l;
-            }
-
+            let input_field = self.input.lock().expect("poison");
             let mut cursorpos = self.cursor_pos.lock().expect("poison");
-            if *cursorpos <= stringlen {
+            if *cursorpos <= Self::charlen(&input_field) {
                 *cursorpos += 1;
             }
         }
@@ -367,9 +359,9 @@ impl VirtualKeyboard {
         let mut idx: usize = 0;
         for layer in &self.keys_layers {
             if idx == *self.active_key_layer.lock().expect("poison") {
-                self.keys_layers[idx].show_all();
+                layer.show_all();
             } else {
-                self.keys_layers[idx].hide();
+                layer.hide();
             }
             idx += 1;
         }
@@ -787,24 +779,18 @@ impl VirtualKeyboard {
         screen.set_xalign(0.0);
         // draw the keyboard
         let keys = Self::define_keysets();
-        let mut keyrow: usize = 1;
 
         let mut rowframes: Vec<gtk::Box> = vec![];
 
         for keyset in 0..3 {
             let keys_layer = gtk::Box::new(gtk::Orientation::Vertical, 3);
             for row in &keys {
-                keyrow += 1;
-                let mut rowframe = gtk::Box::builder().name("keyrow").build();
+                let rowframe = gtk::Box::builder().name("keyrow").build();
                 rowframe.set_width_request(SCREEN_WIDTH - (BORDER_WIDTH * 2));
                 let style_context = rowframe.style_context();
                 style_context.add_class("keyboard_button_row");
-                let mut keycol: usize = 0;
                 for key in row {
-                    keycol += 1;
                     let (width, name, labels) = key;
-                    let mut bgcolor = "#FFFFFF";
-                    let mut fgcolor = "#000000";
                     let label = labels[keyset].clone();
 
                     let w: i32 = (width * 32.0) as i32;
@@ -840,12 +826,6 @@ impl VirtualKeyboard {
                         }
 
                         button.set_hexpand(true);
-                        //button.halign(gtk::Align::Fill);
-                        //button.set_vexpand(true);
-                        button.connect("key_press_event", false, |values| {
-                            println!("Button a!");
-                            return Some(true.into());
-                        });
                         rowframe.pack_start(&button, false, true, 0);
                     }
                 }
@@ -897,7 +877,6 @@ impl VirtualKeyboard {
         let instance = VirtualKeyboard {
             widget,
             input: Mutex::new("".to_string()),
-            accept: Mutex::new("".to_string()),
             close_action: Mutex::new(|_, _| {}),
             screen,
             prompt,
@@ -938,9 +917,9 @@ fn main() {
     shared_data.lock().expect("poison").virtual_keyboard = Some(virtual_keyboard);
     shared_data.lock().expect("poison").home_screen = Mutex::new(Some(home_screen));
 
+    /*
     let shareddata_for_timer = Arc::clone(&shared_data);
 
-    /*
     // timer thread
     let _source_id = glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
         let sd = &shareddata_for_timer.lock().expect("poison");
@@ -982,17 +961,17 @@ fn main() {
     );
 
     // define the window
-    let window1 = Window::new(WindowType::Toplevel);
-    window1.set_title("Hello, World!");
-    window1.set_default_size(SCREEN_WIDTH, SCREEN_HEIGHT);
-    window1.connect_delete_event(|_, _| {
+    let window = Window::new(WindowType::Toplevel);
+    window.set_title("Hello, World!");
+    window.set_default_size(SCREEN_WIDTH, SCREEN_HEIGHT);
+    window.connect_delete_event(|_, _| {
         gtk::main_quit();
         Inhibit(false)
     });
 
-    window1.add(&vbox_main);
+    window.add(&vbox_main);
     vbox_main.show();
-    window1.show();
+    window.show();
 
     gtk::main();
 }
