@@ -2,7 +2,8 @@ use crate::modules::home_screen::SharedData;
 extern crate gtk;
 use glib;
 use gtk::prelude::*;
-use gtk::{Button, Label};
+use gtk::{Button, Label, CssProvider};
+
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -75,6 +76,61 @@ pub struct VirtualKeyboard {
     pub accept: String,
 }
 // key width, special key name, labels
+pub fn physical_keyboard_handler(
+    shareddata_for_keypress: &Arc<Mutex<SharedData>>,
+    values: &[glib::Value],
+) -> Option<glib::Value> {
+    let sd = shareddata_for_keypress.lock().expect("poison");
+    let vk = sd.virtual_keyboard.as_ref();
+    if let Some(keyboard) = vk {
+        println!("keypress");
+        let raw_event = &values[1].get::<gdk::Event>().unwrap();
+        // You have to cast to the correct event type to access some of the fields
+        match raw_event.downcast_ref::<gdk::EventKey>() {
+            Some(event) => {
+                let keyval: u32 = *event.keyval();
+                // let state: gdk::ModifierType = event.state();
+                let (plain_key, special_key) = if keyval <= 255 {
+                    let character = char::from(keyval as u8);
+                    let key = character.to_string();
+                    if keyboard.accept != "" {
+                        if !keyboard.accept.contains(&key) {
+                            ("".to_string(), "".to_string())
+                        } else {
+                            (key, "".to_string())
+                        }
+                    } else {
+                        (key, "".to_string())
+                    }
+                } else {
+                    if keyval == *gdk::keys::constants::BackSpace {
+                        ("".to_string(), ID_BACKSPACE.to_string())
+                    } else if keyval == *gdk::keys::constants::Delete {
+                        ("".to_string(), ID_DELETE.to_string())
+                    } else if keyval == *gdk::keys::constants::Insert {
+                        ("".to_string(), ID_INSERT.to_string())
+                    } else if keyval == *gdk::keys::constants::Left {
+                        ("".to_string(), ID_LEFT.to_string())
+                    } else if keyval == *gdk::keys::constants::Right {
+                        ("".to_string(), ID_RIGHT.to_string())
+                    } else if keyval == *gdk::keys::constants::Return {
+                        ("".to_string(), ID_ENTER.to_string())
+                    } else if keyval == *gdk::keys::constants::Escape {
+                        ("".to_string(), ID_CANCEL.to_string())
+                    } else {
+                        ("".to_string(), "".to_string())
+                    }
+                };
+                if format!("{}{}", plain_key, special_key) != "" {
+                    keyboard.handle_key(&sd, &plain_key, &special_key);
+                }
+            }
+            None => {}
+        }
+    };
+    Some(true.into())
+}
+
 type KeyDef = (f32, String, [String; 3]);
 impl VirtualKeyboard {
     pub fn charlen(input: &str) -> usize {
@@ -783,6 +839,20 @@ impl VirtualKeyboard {
         prompt_text: &str,
         accept: &str,
     ) -> VirtualKeyboard {
+        // Create a CSS provider
+        let css_provider = CssProvider::new();
+        // Load the CSS data
+        css_provider
+            .load_from_data(VIRTUAL_KEYBOARD_CSS.as_bytes())
+            .expect("Failed to load CSS");
+
+        // Add the CSS provider to the default style context of the button
+        gtk::StyleContext::add_provider_for_screen(
+            &gdk::Screen::default().expect("Error initializing gtk css provider."),
+            &css_provider,
+            gtk::STYLE_PROVIDER_PRIORITY_USER,
+        );
+
         let prompt = gtk::Label::builder().name("prompt").build();
         let screen = gtk::Label::builder().name("screen").build();
         // Note: If choosing a different font for the screen, be sure
